@@ -38,8 +38,10 @@ process birli {
     label 'cpu'
     label 'birli'
 
-    time '1h'
+    time { 2.hour * task.attempt }
 
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
     publishDir "${cal_dir}", mode: 'copy'
 
     input:
@@ -70,8 +72,10 @@ process hyperdrive {
     label 'gpu'
     label 'hyperdrive'
 
-    time '1h'
+    time { 1.hour * task.attempt }
 
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
     publishDir "${cal_dir}/hyperdrive", mode: 'copy'
 
     input:
