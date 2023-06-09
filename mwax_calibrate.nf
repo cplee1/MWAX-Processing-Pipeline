@@ -72,7 +72,7 @@ process hyperdrive {
     label 'gpu'
     label 'hyperdrive'
 
-    time { 1.hour * task.attempt }
+    time { 20.minute * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
