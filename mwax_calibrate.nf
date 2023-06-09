@@ -1,11 +1,9 @@
 #!/usr/bin/env nextflow
 
-if ( params.flagged_tiles =~ null ) {
-    hyperdrive_mode = 'flag'
-}
-else {
-    hyperdrive_mode = 'noflag'
-}
+if ( params.flagged_tiles != '' )
+    flag_arg = "--tile-flags ${params.flagged_tiles.split(',').join(' ')}"
+else
+    flag_arg = ''
 
 process check_cal_directory {
     input:
@@ -38,17 +36,17 @@ process birli {
     label 'cpu'
     label 'birli'
 
-    time { 2.hour * task.attempt }
+    time { 20.minute * task.attempt }
 
+    debug true
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
-    publishDir "${cal_dir}", mode: 'copy'
 
     input:
     tuple val(calid), val(cal_dir), val(metafits)
 
     output:
-    tuple val(calid), val(cal_dir), val(metafits), path("${calid}_birli.uvfits")
+    tuple val(calid), val(cal_dir), val(metafits)
 
     script:
     """
@@ -62,9 +60,11 @@ process birli {
 
     birli ${cal_dir}/*ch???*.fits \
         -m ${metafits} \
-        -u /nvmetmp/${calid}_birli.uvfits \
+        -u ${calid}_birli.uvfits \
         --avg-time-res ${params.dt} \
         --avg-freq-res ${params.df}
+
+    cp ${calid}_birli.uvfits ${cal_dir}/${calid}_birli.uvfits
     """
 }
 
@@ -79,54 +79,34 @@ process hyperdrive {
     publishDir "${cal_dir}/hyperdrive", mode: 'copy'
 
     input:
-    tuple val(calid), val(cal_dir), val(metafits), val(birli_uvfits)
+    tuple val(calid), val(cal_dir), val(metafits)
 
     output:
     tuple val(calid), val(cal_dir), path("hyperdrive_solutions.fits"), path("hyperdrive_solutions.bin"), path("*.png")
     
     script:
-    if( hyperdrive_mode == 'noflag' )
-        """
-        set -eux
-        which hyperdrive
+    """
+    set -eux
+    which hyperdrive
 
-        # Locate the source list from the lookup file
-        SRC_LIST=\$(grep ${params.source} ${projectDir}/source_lists.txt | awk '{print \$2}')
-        if [[ ! -r \$SRC_LIST ]]; then
-            echo "Error: Source list not found."
-            exit 1
-        fi
-        
-        # Perform DI calibration
-        hyperdrive di-calibrate -s \$SRC_LIST -d ${birli_uvfits} ${metafits}
+    # Locate the source list from the lookup file
+    SRC_LIST_BASE=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
+    SRC_LIST_TARGET=\$(grep ${params.source} ${projectDir}/source_lists.txt | awk '{print \$2}')
+    SRC_LIST=\${SRC_LIST_BASE}/\${SRC_LIST_TARGET}
+    if [[ ! -r \$SRC_LIST ]]; then
+        echo "Error: Source list not found."
+        exit 1
+    fi
+    
+    # Perform DI calibration
+    hyperdrive di-calibrate -s \$SRC_LIST ${flag_arg} -d ${cal_dir}/${calid}_birli.uvfits ${metafits}
 
-        # Plot the amplitudes and phases of the solutions
-        hyperdrive solutions-plot -m ${metafits} hyperdrive_solutions.fits
+    # Plot the amplitudes and phases of the solutions
+    hyperdrive solutions-plot -m ${metafits} hyperdrive_solutions.fits
 
-        # Convert to AO format for VCSBeam
-        hyperdrive solutions-convert -m ${metafits} hyperdrive_solutions.fits hyperdrive_solutions.bin
-        """
-    else if( hyperdrive_mode == 'flag' )
-        """
-        set -eux
-        which hyperdrive
-
-        # Locate the source list from the lookup file
-        SRC_LIST=\$(grep ${params.source} ${projectDir}/source_lists.txt | awk '{print \$2}')
-        if [[ ! -r \$SRC_LIST ]]; then
-            echo "Error: Source list not found."
-            exit 1
-        fi
-        
-        # Perform DI calibration
-        hyperdrive di-calibrate -s \$SRC_LIST --tile-flags ${params.flagged_tiles.join(' ')} -d ${birli_uvfits} ${metafits}
-
-        # Plot the amplitudes and phases of the solutions
-        hyperdrive solutions-plot -m ${metafits} hyperdrive_solutions.fits
-
-        # Convert to AO format for VCSBeam
-        hyperdrive solutions-convert -m ${metafits} hyperdrive_solutions.fits hyperdrive_solutions.bin
-        """
+    # Convert to AO format for VCSBeam
+    hyperdrive solutions-convert -m ${metafits} hyperdrive_solutions.fits hyperdrive_solutions.bin
+    """
 }
 
 // Minimum execution requirements: --obsid OBSID --calids CALID1,CALID2 --sources SOURCE
