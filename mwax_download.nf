@@ -2,7 +2,7 @@
 
 process check_files_exist {
     output:
-    tuple path("${params.download_dir_obs}/*.metafits"), path("${params.download_dir_cal1}/*.metafits"), path("${params.download_dir_cal2}/*.metafits")
+    tuple env(OBS_METAFITS_PATH), env(CAL1_METAFITS_PATH), env(CAL2_METAFITS_PATH)
 
     script:
     """
@@ -24,6 +24,10 @@ process check_files_exist {
         echo "Error: Cannot find metafits files."
         exit 1
     fi
+
+    OBS_METAFITS_PATH=\$(find ${params.download_dir_obs}/*.metafits)
+    CAL1_METAFITS_PATH=\$(find ${params.download_dir_cal1}/*.metafits)
+    CAL2_METAFITS_PATH=\$(find ${params.download_dir_cal2}/*.metafits)
     """
 }
 
@@ -45,8 +49,8 @@ process get_obsids {
         else:
             return False
 
-    if !(check_obsid('${obs_metafits.baseName}') and
-        check_obsid('${cal1_metafits.baseName}') and
+    if not (check_obsid('${obs_metafits.baseName}') and \
+        check_obsid('${cal1_metafits.baseName}') and \
         check_obsid('${cal1_metafits.baseName}')):
         sys.exit(1)
     
@@ -77,6 +81,6 @@ process move_download_files {
     """
 }
 
-workflow mwax_download {
-    check_files_exist | get_obsids | first | splitCsv | move_download_files
+workflow {
+    check_files_exist | get_obsids | splitCsv | move_download_files
 }
