@@ -34,7 +34,7 @@ process vcsbeam {
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
-    publishDir "${psr_dir}"
+    publishDir "${psr_dir}", mode: 'copy'
 
     input:
     val obsid
@@ -61,7 +61,7 @@ process vcsbeam {
         mkdir -p -m 771 ${psr_dir}
     fi
 
-    make_mwa_tied_array_beam \
+    srun -N 24 -n 24 make_mwa_tied_array_beam \
         -m ${params.vcs_dir}/${obsid}/${obsid}.metafits \
         -b ${params.startgps} \
         -T ${params.duration} \
