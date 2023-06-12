@@ -36,7 +36,7 @@ process birli {
     label 'cpu'
     label 'birli'
 
-    time { 20.minute * task.attempt }
+    time { 1.hour * task.attempt }
 
     debug true
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
@@ -72,7 +72,7 @@ process hyperdrive {
     label 'gpu'
     label 'hyperdrive'
 
-    time { 20.minute * task.attempt }
+    time { 1.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
