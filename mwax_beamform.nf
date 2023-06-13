@@ -1,5 +1,10 @@
 #!/usr/bin/env nextflow
 
+bf_out = ' -v '
+if ( params.fits ) {
+    bf_out = ' -p '
+}
+
 process get_pointings {
     label 'psrsearch'
 
@@ -30,7 +35,7 @@ process vcsbeam {
     label 'gpu'
     label 'vcsbeam'
 
-    time { 1.hours * task.attempt }
+    time { 10.minutes * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
@@ -42,8 +47,7 @@ process vcsbeam {
     tuple val(psr), val(psr_dir), val(pointings), val(flagged_tiles)
 
     output:
-    path '*.vdif', emit: voltages
-    path '*.hdr', emit: headers
+    path '*.{vdif,hdr,fits}'
 
     script:
     """
@@ -71,7 +75,7 @@ process vcsbeam {
         -F ${flagged_tiles} \
         -c ${params.vcs_dir}/${obsid}/cal/${calid}/${calid}.metafits \
         -C ${params.vcs_dir}/${obsid}/cal/${calid}/hyperdrive/hyperdrive_solutions.bin \
-        -v -R NONE -U 0,0 -O -X --smart
+        -R NONE -U 0,0 -O -X --smart ${bf_out}
     """
 }
 
