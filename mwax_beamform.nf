@@ -22,9 +22,14 @@ process get_pointings {
     """
     set -eux
 
-    RAJ=\$(psrcat -e ${psr} | grep RAJ | awk '{print \$2}')
-    DECJ=\$(psrcat -e ${psr} | grep DECJ | awk '{print \$2}')
+    RAJ=\$(psrcat -e2 ${psr} | grep "RAJ " | awk '{print \$2}')
+    DECJ=\$(psrcat -e2 ${psr} | grep "DECJ " | awk '{print \$2}')
     POINTING="\${RAJ} \${DECJ}"
+
+    if [[ -z \$RAJ || -z \$DECJ ]]; then
+        echo "Error: Could not retrieve pointing from psrcat."
+        exit 1
+    fi
 
     echo \$POINTING | tee pointings.txt
     echo "${params.flagged_tiles.split(',').join(' ')}" | tee flagged_tiles.txt
@@ -35,7 +40,7 @@ process vcsbeam {
     label 'gpu'
     label 'vcsbeam'
 
-    time { 10.minutes * task.attempt }
+    time { 1.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
