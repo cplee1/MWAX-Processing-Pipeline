@@ -38,7 +38,6 @@ process birli {
 
     time { 1.hour * task.attempt }
 
-    debug true
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
 
