@@ -20,23 +20,23 @@ process check_files_exist {
     fi
     OBSID=\$(find ${params.asvo_dir}/${asvo_id_obs}/*.metafits | xargs -n1 basename -s ".metafits")
 
-    # Turn the Nextflow list into a Bash list
+    # Turn the Nextflow list into a Bash array
     ASVO_ID_CALS="${asvo_id_cals}"
     ASVO_ID_CALS="\${ASVO_ID_CALS:1:-1}"
     ASVO_ID_CALS="\${ASVO_ID_CALS//,/ }"
     eval "ASVO_ID_CALS=(\$ASVO_ID_CALS)"
 
     CALIDS=""
-    for ID in "\${ASVO_ID_CALS[@]}"; do
-        if [[ ! -d "${params.asvo_dir}/\${ID}" ]]; then
+    for (( i=0; i<\${#ASVO_ID_CALS[@]}; i++ )); do
+        if [[ ! -d "${params.asvo_dir}/\${ASVO_ID_CALS[i]}" ]]; then
             echo "Error: Calibrator ASVO directory does not exist."
             exit 1
         fi
-        if [[ \$(find ${params.asvo_dir}/\${ID}/*.metafits | wc -l) != 1 ]]; then
+        if [[ \$(find ${params.asvo_dir}/\${ASVO_ID_CALS[i]}/*.metafits | wc -l) != 1 ]]; then
             echo "Error: Cannot locate calibrator metafits file."
             exit 1
         fi
-        CALID=\$(find ${params.asvo_dir}/\${ID}/*.metafits | xargs -n1 basename -s ".metafits")
+        CALID=\$(find ${params.asvo_dir}/\${ASVO_ID_CALS[i]}/*.metafits | xargs -n1 basename -s ".metafits")
         CALIDS="\${CALIDS},\${CALID}"
     done
 
@@ -83,34 +83,30 @@ process move_download_files {
         exit 1
     fi
 
-    echo "mkdir -p -m 771 ${params.vcs_dir}/${obsid}/combined"
+    mkdir -p -m 771 ${params.vcs_dir}/${obsid}/combined
+    mv ${params.asvo_dir}/${asvo_id_obs}/*.sub ${params.vcs_dir}/${obsid}/combined
+    mv ${params.asvo_dir}/${asvo_id_obs}/*.metafits ${params.vcs_dir}/${obsid}
+    
+    if [[ -d ${params.asvo_dir}/${asvo_id_obs} && -z "\$(ls -A ${params.asvo_dir}/${asvo_id_obs})" ]]; then
+        rm -r ${params.asvo_dir}/${asvo_id_obs}
+    fi
 
-    echo "mv ${params.asvo_dir}/${asvo_id_obs}/*.sub ${params.vcs_dir}/${obsid}/combined"
-    echo "mv ${params.asvo_dir}/${asvo_id_obs}/*.metafits ${params.vcs_dir}/${obsid}"
-
-    # Turn the comma separated list into a Bash list
+    # Turn the comma separated list into a Bash array
     IFS=',' read -ra CALIDS <<< "${calids}"
 
+    # Turn the nextflow list into a Bash array
     ASVO_ID_CALS="${asvo_id_cals}"
     ASVO_ID_CALS="\${ASVO_ID_CALS:1:-1}"
     ASVO_ID_CALS="\${ASVO_ID_CALS//,/ }"
     eval "ASVO_ID_CALS=(\$ASVO_ID_CALS)"
 
-    echo "\${CALIDS[@]} \${ASVO_ID_CALS[@]}"
-
-    IDX_CALID=0
-    IDX_ASVOID=0
-    for CALID in \${CALIDS[@]}; do
-        for ASVOID in \${ASVO_ID_CALS[@]}; do
-            echo "\$IDX_CALID, \$IDX_ASVOID"
-            #if [[ \$IDX_CALID == \$IDX_ASVOID ]]; then
-            #    echo "ASVO ID \$ASVOID is associated with OBSID \$CALID"
-            #    echo "mkdir -p -m 771 ${params.vcs_dir}/${obsid}/cal/\${CALID}/hyperdrive"
-            #    echo "mv ${params.asvo_dir}/\${ASVOID}/* ${params.vcs_dir}/${obsid}/cal/\${CALID}"
-            #fi
-            let IDX_ASVOID++
-        done
-        let IDX_CALID++
+    for (( i=0; i<\${#CALIDS[@]}; i++ )); do
+        mkdir -p -m 771 /astro/mwavcs/cplee/mwax_pipeline_testing/vcs/1370457464/cal/\${CALIDS[i]}/hyperdrive
+        mv ${params.asvo_dir}/\${ASVO_ID_CALS[i]}/* ${params.vcs_dir}/${obsid}/cal/\${CALIDS[i]}
+    
+        if [[ -d ${params.asvo_dir}/\${ASVO_ID_CALS[i]} && -z "\$(ls -A ${params.asvo_dir}/\${ASVO_ID_CALS[i]})" ]]; then
+            rm -r ${params.asvo_dir}/\${ASVO_ID_CALS[i]}
+        fi
     done
     """
 }
