@@ -45,7 +45,7 @@ process check_files_exist {
     """
 }
 
-process get_obsids {
+process check_obsids {
     input:
     tuple val(asvo_id_obs), val(asvo_id_cals), val(obsid), val(calids)
 
@@ -71,8 +71,6 @@ process get_obsids {
 }
 
 process move_download_files {
-    debug true
-
     input:
     tuple val(asvo_id_obs), val(asvo_id_cals), val(obsid), val(calids)
 
@@ -94,7 +92,7 @@ process move_download_files {
     # Turn the comma separated list into a Bash array
     IFS=',' read -ra CALIDS <<< "${calids}"
 
-    # Turn the nextflow list into a Bash array
+    # Turn the Nextflow list into a Bash array
     ASVO_ID_CALS="${asvo_id_cals}"
     ASVO_ID_CALS="\${ASVO_ID_CALS:1:-1}"
     ASVO_ID_CALS="\${ASVO_ID_CALS//,/ }"
@@ -116,5 +114,5 @@ workflow {
         .from( params.asvo_id_cals.split(',') )
         .set { asvo_id_cals }
 
-    check_files_exist(params.asvo_id_obs, asvo_id_cals.collect()) | get_obsids | move_download_files
+    check_files_exist(params.asvo_id_obs, asvo_id_cals.collect()) | check_obsids | move_download_files
 }
