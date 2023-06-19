@@ -6,7 +6,7 @@ if ( params.fits ) {
 }
 
 process get_pointings {
-    label 'psrsearch'
+    label 'psranalysis'
 
     input:
     val obsid
@@ -52,7 +52,7 @@ process vcsbeam {
     tuple val(psr), val(psr_dir), val(pointings), val(flagged_tiles)
 
     output:
-    path '*.{vdif,hdr,fits}'
+    tuple val(psr), val(psr_dir), path('*.{vdif,hdr,fits}')
 
     script:
     """
@@ -84,17 +84,75 @@ process vcsbeam {
     """
 }
 
+process dspsr {
+    label 'psranalysis'
+
+    time { 1.hour * task.attempt }
+
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
+    publishDir "${psr_dir}/dspsr", mode: 'copy'
+
+    input:
+    tuple val(psr), val(psr_dir), path(vcsbeam_files)
+
+    output:
+    path "*.ar"
+
+    when:
+    params.fits == false
+
+    script:
+    """
+    set -eux
+    
+    psrname=${psr}
+    nbin=${params.nbin}
+    nchan=${params.nchan}
+    tint=${params.tint}
+
+    find *.hdr | xargs -n1 basename > headers.txt
+
+    f_eph=\${psrname}.eph
+    if [ ! -f \${f_eph} ]; then
+        psrcat -e \${psrname} > \${f_eph}
+    fi
+
+    nfiles=\$(cat headers.txt | wc -l)
+    if [ \${nfiles} -lt 1 ]; then
+        echo "Error: No header files found."
+        exit 1
+    fi
+
+    for datafile_hdr in `awk '{ print \$1 }' headers.txt | paste -s -d ' '`; do
+        if [ ! -s \$datafile_hdr ]; then
+            echo "Error: Invalid hdr file \'\${datafile_hdr}\'. Skipping file."
+        else
+            datafile_vdif=\${datafile_hdr%.hdr}.vdif
+            if [ ! -s \$datafile_vdif ]; then
+                echo "Error: Invalid vdif file \'\${datafile_vdif}\'. Skipping file."
+            else
+                size_mb=4096
+                outfile=\${datafile_hdr%.hdr}
+                dspsr -E \$f_eph -b \$nbin -U \$size_mb -F \$nchan:D -L \$tint -A -O \$outfile \$datafile_hdr
+            fi
+        fi
+    done
+
+    psradd -R -o \${psrname}_bins\${nbin}_fchans\${nchan}_tint\${tint}.ar *.ar
+
+    if [[ ! -d ${psr_dir}/dspsr ]]; then
+        mkdir -p -m 771 ${psr_dir}/dspsr
+    fi
+    """
+}
+
 // Minimum execution requirements: --obsid --startgps --duration --calids --flagged_tiles --psrs
 workflow {
     Channel
         .from( params.psrs.split(',') )
         .map { psr -> [ psr, "${params.vcs_dir}/${params.obsid}/pointings/${psr}" ] }
         .set { psr_info }
-    
-    Channel
-        .from( params.calids.split(',') )
-        .first()
-        .set { calid }
 
-    get_pointings(params.obsid, calid, psr_info) | vcsbeam
+    get_pointings(params.obsid, params.calid, psr_info) | vcsbeam | dspsr
 }

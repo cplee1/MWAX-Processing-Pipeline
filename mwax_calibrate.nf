@@ -7,10 +7,10 @@ else
 
 process check_cal_directory {
     input:
-    tuple val(calid), val(cal_dir)
+    tuple val(calid), val(cal_dir), val(source)
 
     output:
-    tuple val(calid), val(cal_dir), env(METAFITS)
+    tuple val(calid), val(cal_dir), env(METAFITS), val(source)
 
     script:
     """
@@ -42,10 +42,10 @@ process birli {
     maxRetries 2
 
     input:
-    tuple val(calid), val(cal_dir), val(metafits)
+    tuple val(calid), val(cal_dir), val(metafits), val(source)
 
     output:
-    tuple val(calid), val(cal_dir), val(metafits)
+    tuple val(calid), val(cal_dir), val(metafits), val(source)
 
     script:
     """
@@ -78,7 +78,7 @@ process hyperdrive {
     publishDir "${cal_dir}/hyperdrive", mode: 'copy'
 
     input:
-    tuple val(calid), val(cal_dir), val(metafits)
+    tuple val(calid), val(cal_dir), val(metafits), val(source)
 
     output:
     tuple val(calid), val(cal_dir), path("hyperdrive_solutions.fits"), path("hyperdrive_solutions.bin"), path("*.png")
@@ -90,7 +90,7 @@ process hyperdrive {
 
     # Locate the source list from the lookup file
     SRC_LIST_BASE=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
-    SRC_LIST_TARGET=\$(grep ${params.source} ${projectDir}/source_lists.txt | awk '{print \$2}')
+    SRC_LIST_TARGET=\$(grep ${source} ${projectDir}/source_lists.txt | awk '{print \$2}')
     SRC_LIST=\${SRC_LIST_BASE}/\${SRC_LIST_TARGET}
     if [[ ! -r \$SRC_LIST ]]; then
         echo "Error: Source list not found."
@@ -108,12 +108,11 @@ process hyperdrive {
     """
 }
 
-// Minimum execution requirements: --obsid OBSID --calids CALID1,CALID2 --sources SOURCE
-// TODO : allow for multiple sources
+// Minimum execution requirements: --obsid OBSID --calibrators CALID1:SOURCE1,CALID2:SOURCE2
 workflow {
     Channel
-        .from( params.calids.split(',') )
-        .map { calid -> [ calid, "${params.vcs_dir}/${params.obsid}/cal/$calid" ] }
+        .from( params.calibrators.split(',') )
+        .map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${params.obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
         .set { cal_info }
 
     check_cal_directory(cal_info) | birli | hyperdrive
