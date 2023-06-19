@@ -85,7 +85,9 @@ process vcsbeam {
 }
 
 process dspsr {
+    label 'cpu'
     label 'psranalysis'
+    label 'dspsr'
 
     time { 1.hour * task.attempt }
 
