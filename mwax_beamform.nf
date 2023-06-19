@@ -153,10 +153,6 @@ workflow {
         .from( params.psrs.split(',') )
         .map { psr -> [ psr, "${params.vcs_dir}/${params.obsid}/pointings/${psr}" ] }
         .set { psr_info }
-    
-    Channel
-        .from( params.calid )
-        .set { calid }
 
-    get_pointings(params.obsid, calid, psr_info) | vcsbeam | dspsr
+    get_pointings(params.obsid, params.calid, psr_info) | vcsbeam | dspsr
 }
