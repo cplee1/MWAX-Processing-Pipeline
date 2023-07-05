@@ -61,7 +61,8 @@ process birli {
         -m ${metafits} \
         -u ${calid}_birli.uvfits \
         --avg-time-res ${params.dt} \
-        --avg-freq-res ${params.df}
+        --avg-freq-res ${params.df} \
+        --flag-edge-chans ${params.flag_edge_chans}
 
     cp ${calid}_birli.uvfits ${cal_dir}/${calid}_birli.uvfits
     """
@@ -88,13 +89,16 @@ process hyperdrive {
     set -eux
     which hyperdrive
 
-    # Locate the source list from the lookup file
-    SRC_LIST_BASE=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
+    # Locate the source list
     SRC_LIST_TARGET=\$(grep ${source} ${projectDir}/source_lists.txt | awk '{print \$2}')
+    SRC_LIST_BASE=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
     SRC_LIST=\${SRC_LIST_BASE}/\${SRC_LIST_TARGET}
-    if [[ ! -r \$SRC_LIST ]]; then
-        echo "Error: Source list not found."
-        exit 1
+    if [[ -z \$SRC_LIST_TARGET ]]; then
+        echo "Error: Source list not found in lookup table. Using GGSM catalogue."
+        #SRC_LIST_CATALOGUE=/pawsey/mwa/software/python3/srclists/master/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
+        SRC_LIST_CATALOGUE=/astro/mwavcs/cplee/sourcelists/GGSM_updated.txt
+        SRC_LIST=srclist_1000.yaml
+        hyperdrive srclist-by-beam -n 1000 -m ${metafits} \$SRC_LIST_CATALOGUE \$SRC_LIST
     fi
     
     # Perform DI calibration
