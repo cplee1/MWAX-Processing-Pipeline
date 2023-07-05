@@ -1,5 +1,4 @@
 HerA model-HerA-27comp_withalpha.txt
-3C444 model-3C444-10comp_withalpha.txt
 HydA model-HydA-58comp_withalpha.txt
 PicA model-PicA-88comp_withalpha.txt
 CenA model-CenA-50comp_withalpha.txt
