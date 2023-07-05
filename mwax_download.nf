@@ -99,7 +99,7 @@ process move_download_files {
     eval "ASVO_ID_CALS=(\$ASVO_ID_CALS)"
 
     for (( i=0; i<\${#CALIDS[@]}; i++ )); do
-        mkdir -p -m 771 /astro/mwavcs/cplee/mwax_pipeline_testing/vcs/1370457464/cal/\${CALIDS[i]}/hyperdrive
+        mkdir -p -m 771 ${params.vcs_dir}/${obsid}/cal/\${CALIDS[i]}/hyperdrive
         mv ${params.asvo_dir}/\${ASVO_ID_CALS[i]}/* ${params.vcs_dir}/${obsid}/cal/\${CALIDS[i]}
     
         if [[ -d ${params.asvo_dir}/\${ASVO_ID_CALS[i]} && -z "\$(ls -A ${params.asvo_dir}/\${ASVO_ID_CALS[i]})" ]]; then
