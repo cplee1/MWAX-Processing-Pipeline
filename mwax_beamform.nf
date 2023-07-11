@@ -177,7 +177,12 @@ process get_ephemeris {
         tempo2 -gr transform \$par_file_tcb \$par_file back
     fi
 
+    # Replace TAI with BIPM
     sed -i "s/TT(TAI)/TT(BIPM)/" \$par_file
+
+    # Replace BIPMyyyy with BIPM
+    sed -i 's/TT(BIPM[0-9]\\{4\\})/TT(BIPM)/g' \$par_file
+
     """
 }
 
@@ -248,7 +253,7 @@ process dspsr {
     pav -TpC -G -g \${base_name}_waterfall.png/png \${base_name}.ar
     pav -FpC -Y -g \${base_name}_waterfall.png/png \${base_name}.ar
 
-    dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.tint}s
+    dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s
     if [[ ! -d \${dataproduct_dir}/dspsr ]]; then
         mkdir -p -m 771 \${dataproduct_dir}/dspsr
     fi
@@ -321,7 +326,7 @@ process prepfold {
         \$bin_flag \
         \$(cat fitsfiles.txt)
 
-    dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/psrfits_${params.tint}s
+    dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/psrfits_${params.duration}s
     if [[ ! -d \${dataproduct_dir}/prepfold ]]; then
         mkdir -p -m 771 \${dataproduct_dir}/prepfold
     fi
