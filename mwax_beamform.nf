@@ -47,22 +47,24 @@ process get_pointings {
 
         IFS=':' read -r raj_hours raj_minutes raj_seconds <<< "\$RAJ"
         IFS=':' read -r decj_degrees decj_minutes decj_seconds <<< "\$DECJ"
-        raj_seconds_rounded=\$(printf "%05.2f" "\$raj_seconds")
-        decj_seconds_rounded=\$(printf "%05.2f" "\$decj_seconds")
-        POINTING="\$raj_hours:\$raj_minutes:\$raj_seconds_rounded"_"\$decj_degrees:\$decj_minutes:\$decj_seconds_rounded"
+        raj_seconds_rounded=\$(echo "scale=2; (\$raj_seconds + 0.005) / 1" | bc)
+        decj_seconds_rounded=\$(echo "scale=2; (\$decj_seconds + 0.005) / 1" | bc)
+        raj_seconds_formatted=\$(printf "%05.2f" "\$raj_seconds_rounded")
+        decj_seconds_formatted=\$(printf "%05.2f" "\$decj_seconds_rounded")
+        pointing="\$raj_hours:\$raj_minutes:\$raj_seconds_formatted"_"\$decj_degrees:\$decj_minutes:\$decj_seconds_formatted"
 
-        echo "\${PSRS[i]} \${POINTING}" | tee -a pointing_pairs.txt
+        echo "\${PSRS[i]} \${pointing}" | tee -a pointing_pairs.txt
 
-        PSR_DIR="${params.vcs_dir}/${params.obsid}/pointings/\${PSRS[i]}"
-        if [[ ! -d \$PSR_DIR ]]; then
-            mkdir -p -m 771 \$PSR_DIR
+        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/\${PSRS[i]}"
+        if [[ ! -d \$psr_dir ]]; then
+            mkdir -p -m 771 \$psr_dir
         fi
 
-        OLD_FILES=\$(find \$PSR_DIR -type f -name "*.{fits,vdif,hdr}")
-        if [[ -n \$OLD_FILES ]]; then
-            ARCHIVE="\${PSR_DIR}/archived_\$(date +%s)"
-            mkdir -p -m 771 \$ARCHIVE
-            find \$PSR_DIR -type f -name "*.{fits,vdif,hdr}" -exec mv {} \$ARCHIVE \\;
+        old_files=\$(find \$psr_dir -type f -name "*.{fits,vdif,hdr}")
+        if [[ -n \$old_files ]]; then
+            archive="\${psr_dir}/archived_\$(date +%s)"
+            mkdir -p -m 771 \$archive
+            find \$psr_dir -type f -name "*.{fits,vdif,hdr}" -exec mv {} \$archive \\;
         fi
     done
 
@@ -74,7 +76,7 @@ process vcsbeam {
     label 'gpu'
     label 'vcsbeam'
 
-    time { 2.hour * task.attempt }
+    time { 5.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
