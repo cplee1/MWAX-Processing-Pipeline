@@ -1,8 +1,10 @@
 #!/usr/bin/env nextflow
 
 bf_out = ' -v '
+subdir_label = 'vdif'
 if ( params.fits ) {
     bf_out = ' -p '
+    subdir_label = 'psrfits'
 }
 
 process get_pointings {
@@ -47,15 +49,15 @@ process get_pointings {
 
         IFS=':' read -r raj_hours raj_minutes raj_seconds <<< "\$RAJ"
         IFS=':' read -r decj_degrees decj_minutes decj_seconds <<< "\$DECJ"
-        raj_seconds_rounded=\$(echo "scale=2; (\$raj_seconds + 0.005) / 1" | bc)
-        decj_seconds_rounded=\$(echo "scale=2; (\$decj_seconds + 0.005) / 1" | bc)
-        raj_seconds_formatted=\$(printf "%05.2f" "\$raj_seconds_rounded")
-        decj_seconds_formatted=\$(printf "%05.2f" "\$decj_seconds_rounded")
-        pointing="\$raj_hours:\$raj_minutes:\$raj_seconds_formatted"_"\$decj_degrees:\$decj_minutes:\$decj_seconds_formatted"
+        # raj_seconds_rounded=\$(echo "scale=2; (\$raj_seconds + 0.005) / 1" | bc)
+        # decj_seconds_rounded=\$(echo "scale=2; (\$decj_seconds + 0.005) / 1" | bc)
+        # raj_seconds_formatted=\$(printf "%05.2f" "\$raj_seconds_rounded")
+        # decj_seconds_formatted=\$(printf "%05.2f" "\$decj_seconds_rounded")
+        pointing_glob="*\$raj_hours:\$raj_minutes:*\$decj_degrees:\$decj_minutes:*"
 
-        echo "\${PSRS[i]} \${pointing}" | tee -a pointing_pairs.txt
+        echo "\${PSRS[i]} \${pointing_glob}" | tee -a pointing_pairs.txt
 
-        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/\${PSRS[i]}"
+        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/\${PSRS[i]}/${subdir_label}_${params.duration}s"
         if [[ ! -d \$psr_dir ]]; then
             mkdir -p -m 771 \$psr_dir
         fi
@@ -129,13 +131,13 @@ process vcsbeam {
     eval "PSRS=(\$PSRS)"
 
     for (( i=0; i<\${#PSRS[@]}; i++ )); do
-        POINTING=\$(grep "\${PSRS[i]}" ${pairs})
-        if [[ -z \$POINTING ]]; then
+        pointing_glob=\$(grep "\${PSRS[i]}" ${pairs} | awk '{print \$2}')
+        if [[ -z \$pointing_glob ]]; then
             echo "Error: Cannot find pointing for pulsar \${PSRS[i]}."
             exit 1
         fi
     
-        find . -type f -name "*\${POINTING}*" -exec cp {} "${params.vcs_dir}/${params.obsid}/pointings/\${PSRS[i]}" \\;
+        find . -type f -name "\${pointing_glob}" -exec cp {} "${params.vcs_dir}/${params.obsid}/pointings/\${PSRS[i]}/${subdir_label}_${params.duration}s" \\;
     done
     """
 }
@@ -163,13 +165,17 @@ process get_ephemeris {
 
     par_file=${psr}.par
 
-    psrcat -e ${psr} > \$par_file
-
-    if [[ ! -z \$(grep WARNING \$par_file) ]]; then
-        echo "Error: Pulsar not in catalogue."
-        psrcat -v
-        exit 1
-    fi  
+    if [[ -r ${params.ephemeris_dir}/\$par_file ]]; then
+        cp ${params.ephemeris_dir}/\$par_file \$par_file
+    else
+        echo "MeerKAT ephemeris not found. Using PSRCAT."
+        psrcat -e ${psr} > \$par_file
+        if [[ ! -z \$(grep WARNING \$par_file) ]]; then
+            echo "Error: Pulsar not in catalogue."
+            psrcat -v
+            exit 1
+        fi
+    fi
 
     time_standard=\$(cat \$par_file | grep UNITS | awk '{print \$2}')
 
@@ -212,8 +218,8 @@ process dspsr {
     set -eux
     
     # Locate header and voltage files
-    find -L . -type f -name "*\$(grep ${psr} ${pairs} | awk '{print \$2}')*.hdr" | xargs -n1 basename | sort > headers.txt
-    find -L . -type f -name "*\$(grep ${psr} ${pairs} | awk '{print \$2}')*.vdif" | xargs -n1 basename | sort > vdiffiles.txt
+    find -L . -type f -name "\$(grep ${psr} ${pairs} | awk '{print \$2}').hdr" | xargs -n1 basename | sort > headers.txt
+    find -L . -type f -name "\$(grep ${psr} ${pairs} | awk '{print \$2}').vdif" | xargs -n1 basename | sort > vdiffiles.txt
 
     if [[ -z \$(cat headers.txt) ]]; then
         echo "Error: No header files found."
@@ -274,18 +280,10 @@ process prepfold {
     label 'psrsearch'
     label 'prepfold'
 
-    time { 1.hour * task.attempt }
+    time 1.hour
 
-    errorStrategy {
-        if (task.exitStatus == 2) {
-            'ignore'
-        } else if (task.exitStatus in 137..140) {
-            'retry'
-        } else {
-            'terminate'
-        }
-    }
-    maxRetries 2
+    errorStrategy { task.attempt == 1 ? 'retry' : 'ignore' }
+    maxRetries 1
 
     input:
     val psr
@@ -300,13 +298,8 @@ process prepfold {
     """
     set -eux
 
-    if [[ \$(cat ${par_file} | grep BINARY | awk '{print \$2}') == 'T2' ]]; then
-        echo "Error: Binary model T2 not accepted by TEMPO."
-        exit 2
-    fi
-
     # Locate fits files
-    find -L . -type f -name "*\$(grep ${psr} ${pairs} | awk '{print \$2}')*.fits" | xargs -n1 basename | sort > fitsfiles.txt
+    find -L . -type f -name "\$(grep ${psr} ${pairs} | awk '{print \$2}').fits" | xargs -n1 basename | sort > fitsfiles.txt
 
     if [[ -z \$(cat fitsfiles.txt) ]]; then
         echo "Error: No fits files found."
@@ -317,13 +310,40 @@ process prepfold {
     if [[ ! -z \$(grep BINARY ${par_file}) ]]; then
         bin_flag="-bin"
     fi
-    
+
+    par_input=""
+    if [[ ${task.attempt} == 1 ]]; then
+        # On first attempt, try the par file
+        if [[ \$(cat ${par_file} | grep BINARY | awk '{print \$2}') == 'T2' ]]; then
+            echo "Binary model T2 not accepted by TEMPO."
+            # Default to PRESTO ephemeris
+            par_input="-psr ${psr}"
+        else
+            par_input="-par ${par_file}"
+        fi
+    else
+        # Otherwise, try the inbuilt ephermeris in PRESTO
+        par_input="-psr ${psr}"
+    fi
+
+    spin_freq=\$(grep F0 ${par_file} | awk '{print \$2}')
+    spin_period_ms=\$(echo "scale=5; 1000 / \$spin_freq" | bc)
+    if [[ -z \$spin_period_ms ]]; then
+        # Cannot locate spin period
+        nbin=${params.nbin}
+    elif (( \$(echo "\$spin_period_ms < 5" | bc -l) )); then
+        # Set nbins to 10x the period in ms, and always round down
+        nbin=\$(printf "%.0f" \$(echo "scale=0; 10 * \$spin_period_ms - 0.5" | bc))
+    else
+        nbin=${params.nbin}
+    fi
+
     prepfold \
         -ncpus ${task.cpus} \
-        -par ${par_file} \
+        \$par_input \
         -noxwin \
         -noclip \
-        -n ${params.nbin} \
+        -n \$nbin \
         -nsub 256 \
         \$bin_flag \
         \$(cat fitsfiles.txt)
