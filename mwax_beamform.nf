@@ -78,7 +78,7 @@ process vcsbeam {
     label 'gpu'
     label 'vcsbeam'
 
-    time { 5.hour * task.attempt }
+    time { 4.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
@@ -226,6 +226,18 @@ process dspsr {
         exit 1
     fi
 
+    spin_freq=\$(grep F0 ${par_file} | awk '{print \$2}')
+    spin_period_ms=\$(echo "scale=5; 1000 / \$spin_freq" | bc)
+    if [[ -z \$spin_period_ms ]]; then
+        # Cannot locate spin period
+        nbin=${params.nbin}
+    elif (( \$(echo "\$spin_period_ms < ${params.nbin}/10" | bc -l) )); then
+        # Set nbins to 10x the period in ms, and always round down
+        nbin=\$(printf "%.0f" \$(echo "scale=0; 10 * \$spin_period_ms - 0.5" | bc))
+    else
+        nbin=${params.nbin}
+    fi
+
     for datafile_hdr in `awk '{ print \$1 }' headers.txt | paste -s -d ' '`; do
         if [ ! -s \$datafile_hdr ]; then
             echo "Error: Invalid hdr file \'\${datafile_hdr}\'. Skipping file."
@@ -238,7 +250,7 @@ process dspsr {
                 outfile=\${datafile_hdr%.hdr}
                 dspsr \
                     -E ${par_file} \
-                    -b ${params.nbin} \
+                    -b \$nbin \
                     -U \$size_mb \
                     -F ${params.nchan}:D \
                     -L ${params.tint} -A \
@@ -248,7 +260,7 @@ process dspsr {
         fi
     done
 
-    base_name=${psr}_bins${params.nbin}_fchans${params.nchan}_tint${params.tint}
+    base_name=${psr}_bins\${nbin}_fchans${params.nchan}_tint${params.tint}
 
     # Stitch together channels
     psradd -R -o \${base_name}.ar *.ar
@@ -331,7 +343,7 @@ process prepfold {
     if [[ -z \$spin_period_ms ]]; then
         # Cannot locate spin period
         nbin=${params.nbin}
-    elif (( \$(echo "\$spin_period_ms < 5" | bc -l) )); then
+    elif (( \$(echo "\$spin_period_ms < ${params.nbin}/10" | bc -l) )); then
         # Set nbins to 10x the period in ms, and always round down
         nbin=\$(printf "%.0f" \$(echo "scale=0; 10 * \$spin_period_ms - 0.5" | bc))
     else
