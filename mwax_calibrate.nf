@@ -52,7 +52,7 @@ process birli {
     set -eux
     which birli
 
-    if [[ -r ${cal_dir}/${calid}_birli.uvfits ]]; then
+    if [[ -r ${cal_dir}/${calid}_birli.uvfits && ${params.force_birli} == 'false' ]]; then
         echo "Birli files found. Skipping process."
         exit 0
     fi

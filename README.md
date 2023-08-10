@@ -1,2 +1,2 @@
-# SMART-Verification-Pipeline
-A basic Nextflow pipeline for performing quick-look verification on MWAX VCS data collected for the SMART pulsar survey.
+# MWAX-Processing-Pipeline
+A basic Nextflow pipeline for processing MWAX VCS data.
