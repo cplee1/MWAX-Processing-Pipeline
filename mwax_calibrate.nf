@@ -96,7 +96,7 @@ process hyperdrive {
     if [[ -z \$SRC_LIST_TARGET ]]; then
         echo "Error: Source list not found in lookup table. Using GGSM catalogue."
         #SRC_LIST_CATALOGUE=/pawsey/mwa/software/python3/srclists/master/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
-        SRC_LIST_CATALOGUE=/astro/mwavcs/cplee/sourcelists/GGSM_updated.txt
+        SRC_LIST_CATALOGUE=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
         SRC_LIST=srclist_1000.yaml
         hyperdrive srclist-by-beam -n 1000 -m ${metafits} \$SRC_LIST_CATALOGUE \$SRC_LIST
     fi
