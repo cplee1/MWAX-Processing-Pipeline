@@ -16,7 +16,9 @@
 module use /pawsey/mwa/software/python3/modulefiles
 module load vcsbeam
 module list
+make_mwa_tied_array_beam -V
 
+# Parse command line arguments
 metafits=$1     # path to VCS metafits file
 datadir=$2      # path to combined (.dat) or MWAX (.sub) data directory
 calsol=$3       # path to calibration solution from hyperdrive (should be a .bin file)

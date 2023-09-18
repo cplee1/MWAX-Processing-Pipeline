@@ -15,6 +15,8 @@ module use /pawsey/mwa/software/python3/modulefiles
 module load hyperdrive/peel
 module load birli
 module list
+hyperdrive di-calibrate -V
+birli -V
 
 ############################## NOTE ##############################
 # This script should be placed in a directory called "hyperdrive", 
@@ -26,10 +28,10 @@ mfits=$(basename -- "$(ls ../*.metafits)")
 obsid="${mfits%.*}"  # observation ID of calibrator
 
 # Select a source list - in most cases this is probably okay, but for brighter A-team sources 
-# you may want to use their specific models -
+# you may want to use their specific models:
 #
+#    CenA: model-CenA-50comp_withalpha.txt
 #    HerA: model-HerA-27comp_withalpha.txt
-#   3C444: model-3C444-10comp_withalpha.txt
 #    HydA: model-HydA-58comp_withalpha.txt
 #    PicA: model-PicA-88comp_withalpha.txt
 #
@@ -38,28 +40,44 @@ obsid="${mfits%.*}"  # observation ID of calibrator
 srclistTarget=
 srclistBase=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
 if [[ -z "$srclistTarget" ]]; then
-    srclist=/pawsey/mwa/software/python3/srclists/master/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
+    # Use GLEAM-X catalogue
+    srclist=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
 else
+    # Use specified source list
     srclist=${srclistBase}/${srclistTarget}
 fi
 
 fres=40  # desired freq. resolution in kHz for cal. UVFITS
 tres=2  # desired time resolution in seconds for cal. UVFITS
+flag_edge_chans=1  # number of fine channels to flag at edges of coarse channels
 
 # DO THE THINGS
 # make the downsampled uvfits data if it's not already there
 if [[ ! -r ../${obsid}_birli.uvfits ]]; then
-    birli ../*ch???*.fits -m ../*.metafits -u /nvmetmp/${obsid}_birli.uvfits --avg-time-res ${tres} --avg-freq-res ${fres}
+    birli \
+        ../*ch???*.fits \
+        -m ../*.metafits \
+        -u /nvmetmp/${obsid}_birli.uvfits \
+        --avg-time-res ${tres} \
+        --avg-freq-res ${fres} \
+        --flag-edge-chans ${flag_edge_chans}
     cp /nvmetmp/${obsid}_birli.uvfits ../${obsid}_birli.uvfits
 fi
 
 # do DI calibration (if necessary, flag tiles with: --tile-flags <tile1> ... <tileN>)
-hyperdrive di-calibrate -s ${srclist} -d ../${obsid}_birli.uvfits ../*.metafits
+hyperdrive di-calibrate \
+    -s ${srclist} \
+    -d ../${obsid}_birli.uvfits \
+    ../*.metafits
 
 # plot the solutions, will create two PNGs for amps and phase:
 #       inspect these, and any that don't appear to converge (i.e., non-linear ramp in phase) 
 #       should be flagged in the above command and resubmit the job
-hyperdrive solutions-plot -m ../*.metafits hyperdrive_solutions.fits
+hyperdrive solutions-plot \
+    -m ../*.metafits \
+    hyperdrive_solutions.fits
 
 # convert to AO-style solutions, that VCSbeam can read
-hyperdrive solutions-convert -m ../*.metafits hyperdrive_solutions.fits hyperdrive_solutions.bin
+hyperdrive solutions-convert \
+    -m ../*.metafits hyperdrive_solutions.fits \
+    hyperdrive_solutions.bin
