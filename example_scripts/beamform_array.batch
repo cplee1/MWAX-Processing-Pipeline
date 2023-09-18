@@ -37,4 +37,4 @@ srun -N 1 -n 1 make_mwa_tied_array_beam \
     -F $(pwd)/flagged_tiles.txt \
     -c ${calmetafits} \
     -C ${calsol} \
-    -p -R NONE -U 0,0 -O -X --smart
+    -v -R NONE -U 0,0 -O -X --smart
