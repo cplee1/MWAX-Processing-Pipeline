@@ -60,8 +60,8 @@ process vcsbeam {
 
     time { 1.hour * task.attempt }
 
-    errorStrategy 'terminate' // { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    // maxRetries 2
+    errorStrategy 'terminate' { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 1
 
     input:
     tuple val(psr), val(pointings), val(flagged_tiles)

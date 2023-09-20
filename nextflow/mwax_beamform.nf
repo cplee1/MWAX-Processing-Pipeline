@@ -28,8 +28,10 @@ if ( params.help ) {
              |
              |Dedispersion and folding options:
              |  --nbin             Maximum phase bins to fold into [default: ${params.nbin}]
-             |  --fine_chan        Fine channels per coarse channel [default: ${params.nchan}]
-             |  --tint             Length of sub-integrations [default: ${params.tint} s]
+             |  --fine_chan        Number of fine channels per coarse channel (dspsr) [default: ${params.nchan}]
+             |  --tint             Length of sub-integrations (dspsr) [default: ${params.tint} s]
+             |  --nsub             Number of frequency sub-bands to use in search (prepfold) [default: ${params.nsub}]
+             |  --npart            Number of sub-integrations to use in search (prepfold) [default: ${params.npart}]
              |
              |Optional arguments:
              |  --vcsbeam_version  The vcsbeam module version to use [default: ${params.vcsbeam_version}]
@@ -44,8 +46,8 @@ if ( params.fits != true && params.vdif != true ) {
     exit(1)
 }
 
-include { beamform } from './modules/bf_single_module'
-include { beamform_mp } from './modules/bf_multi_module'
+include { beamform } from './modules/singlebeam_module'
+include { beamform_mp } from './modules/multibeam_module'
 
 workflow {
     if ( params.fits ) {

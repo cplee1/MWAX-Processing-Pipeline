@@ -73,8 +73,8 @@ process vcsbeam {
 
     time { 4.hour * task.attempt }
 
-    errorStrategy 'terminate' // { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    // maxRetries 2
+    errorStrategy 'terminate' { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 1
 
     input:
     tuple val(psrs), val(pointings), val(pairs), val(flagged_tiles)
@@ -239,22 +239,14 @@ process prepfold {
         nbin=${params.nbin}
     fi
 
-    # Calculate number of sub-bands and sub-integrations
-    nsub=\$(echo "scale=0; ${params.fine_chan} * ${params.num_chan}" | bc)
-    npart=\$(echo "scale=0; ${params.duration} / ${params.tint}" | bc)
-
-    if [[ \$npart -lt ${params.min_npart} ]]; then
-        npart=${params.min_npart}
-    fi
-
     prepfold \
         -ncpus ${task.cpus} \
         \$par_input \
         -noxwin \
         -noclip \
         -n \$nbin \
-        -nsub \$nsub \
-        -npart \$npart \
+        -nsub ${params.nsub} \
+        -npart ${params.npart} \
         \$bin_flag \
         \$(cat fitsfiles.txt)
 
