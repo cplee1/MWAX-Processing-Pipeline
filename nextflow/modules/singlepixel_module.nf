@@ -240,7 +240,7 @@ process dspsr {
 }
 
 // Use the standard beamformer (assumes VDIF format)
-workflow beamform {
+workflow beamform_sp {
     take:
         // Channel of individual pulsar Jnames
         psrs

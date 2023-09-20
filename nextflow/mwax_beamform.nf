@@ -46,8 +46,8 @@ if ( params.fits != true && params.vdif != true ) {
     exit(1)
 }
 
-include { beamform } from './modules/singlebeam_module'
-include { beamform_mp } from './modules/multibeam_module'
+include { beamform_sp } from './modules/singlepixel_module'
+include { beamform_mp } from './modules/multipixel_module'
 
 workflow {
     if ( params.fits ) {
@@ -61,6 +61,6 @@ workflow {
         Channel
             .from(params.psrs.split(' '))
             .set { psrs }
-        beamform(psrs)
+        beamform_sp(psrs)
     }
 }
