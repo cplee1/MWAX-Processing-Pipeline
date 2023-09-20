@@ -73,7 +73,7 @@ process vcsbeam {
 
     time { 4.hour * task.attempt }
 
-    errorStrategy 'terminate' { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 1
 
     input:
