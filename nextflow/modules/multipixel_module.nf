@@ -1,5 +1,16 @@
 #!/usr/bin/env nextflow
 
+/*
+    Multipixel Module
+    ~~~~~~~~~~~~~~~~~~
+    This module contains processes and workflows for beamforming on multiple
+    pulsars using the multipixel beamformer (one big job). The beamformed data
+    are then separated and the folding is done independently for each pulsar.
+    
+    Since the multipixel beamformer is only compatible with detected output,
+    this workflow assumes PSRFITS output.
+*/
+
 process get_pointings {
     label 'psranalysis'
 
@@ -52,11 +63,11 @@ process get_pointings {
         fi
 
         # Move any existing beamformed data into a subdirectory
-        old_files=\$(find \$psr_dir -type f -name "*.fits")
+        old_files=\$(find \$psr_dir -type f)
         if [[ -n \$old_files ]]; then
-            archive="\${psr_dir}/archived_\$(date +%s)"
+            archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
             mkdir -p -m 771 \$archive
-            find \$psr_dir -type f -name "*.fits" -exec mv {} \$archive \\;
+            echo \$old_files | xargs -n1 mv -t \$archive
         fi
     done
 

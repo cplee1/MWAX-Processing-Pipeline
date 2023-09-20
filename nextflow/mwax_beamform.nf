@@ -2,7 +2,7 @@
 
 params.help = false
 if ( params.help ) {
-    help = """mwax_beamform.nf: Beamform on MWAX VCS data.
+    help = """mwax_beamform.nf: Beamform and fold VCS pulsar observations.
              |Required arguments:
              |  --obsid <OBSID>    Observation ID you want to process [no default]
              |  --calid <CALID>    Observation ID of calibrator you want to process [no default]
@@ -20,6 +20,7 @@ if ( params.help ) {
              |Beamforming options (choose at least one):
              |  --fits             Export beamformed data in PSRFITS format
              |  --vdif             Export beamformed data in VDIF format
+             |  --skip_bf          Re-fold existing data without re-beamforming
              |
              |Pointing options:
              |  --psrs <PSRS>...   Space separated list of pulsar Jnames (enclosed in
@@ -32,7 +33,10 @@ if ( params.help ) {
              |  --tint             Length of sub-integrations (dspsr) [default: ${params.tint} s]
              |  --nsub             Number of frequency sub-bands to use in search (prepfold) [default: ${params.nsub}]
              |  --npart            Number of sub-integrations to use in search (prepfold) [default: ${params.npart}]
-             |
+             |  --ephemeris_dir <EPHEMERIS_DIR>
+             |                     A directory containing custom ephemerides to take preference
+             |                     over PSRCAT. Ephemeris files must be named <Jname>.par
+             |                     [default: ${params.ephemeris_dir}]
              |Optional arguments:
              |  --vcsbeam_version  The vcsbeam module version to use [default: ${params.vcsbeam_version}]
              |  -w                 The Nextflow work directory. Delete the directory once the
@@ -46,21 +50,32 @@ if ( params.fits != true && params.vdif != true ) {
     exit(1)
 }
 
-include { beamform_sp } from './modules/singlepixel_module'
+include { beamform_sp; run_dspsr; run_prepfold } from './modules/singlepixel_module'
 include { beamform_mp } from './modules/multipixel_module'
 
 workflow {
     if ( params.fits ) {
-        Channel
-            .from(params.psrs.split(' '))
-            .collect()
-            .set { psrs }
-        beamform_mp(psrs)
+        if ( params.skip_bf ){
+            Channel
+                .from(params.psrs.split(' '))
+                .set { psrs }
+            run_prepfold(psrs)
+        } else {
+            Channel
+                .from(params.psrs.split(' '))
+                .collect()
+                .set { psrs }
+            beamform_mp(psrs)
+        }
     }
     if ( params.vdif ) {
         Channel
             .from(params.psrs.split(' '))
             .set { psrs }
-        beamform_sp(psrs)
+        if ( params.skip_bf ) {
+            run_dspsr(psrs)
+        } else {
+            beamform_sp(psrs)
+        }
     }
 }
