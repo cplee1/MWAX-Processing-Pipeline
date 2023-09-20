@@ -105,8 +105,7 @@ process get_pointings {
     echo "\${RAJ} \${DECJ}" | tee pointings.txt
 
     # Ensure that there is a directory for the beamformed data
-    file_format='vdif'
-    psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${psr}/\${file_format}_${params.duration}s"
+    psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s"
     if [[ ! -d \$psr_dir ]]; then
         mkdir -p -m 771 \$psr_dir
     fi
@@ -233,6 +232,9 @@ process dspsr {
     input:
     tuple val(psr), path(vcsbeam_files), path(par_file)
 
+    output:
+    val psr
+
     script:
     """
     find *.hdr | sort > headers.txt
@@ -296,8 +298,7 @@ process dspsr {
     pav -TpC -Gd -g \${base_name}_frequency_phase.png/png \${base_name}.ar
     pav -FpC -Y -g \${base_name}_time_phase.png/png \${base_name}.ar
 
-    file_format='vdif'
-    dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/\${file_format}_${params.duration}s
+    dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s
     if [[ ! -d \${dataproduct_dir}/dspsr ]]; then
         mkdir -p -m 771 \${dataproduct_dir}/dspsr
     fi
@@ -340,6 +341,11 @@ process prepfold {
         bin_flag="-bin"
     fi
 
+    nosearch_flag=""
+    if [[ "${params.nosearch}" == "true" ]]; then
+        nosearch_flag="-nosearch"
+    fi
+
     par_input=""
     if [[ ${task.attempt} == 1 ]]; then
         # On first attempt, try the par file
@@ -376,6 +382,8 @@ process prepfold {
         -nsub ${params.nsub} \
         -npart ${params.npart} \
         \$bin_flag \
+        \$nosearch_flag \
+        \$nosearch_flag \
         \$(cat fitsfiles.txt)
 
     dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/psrfits_${params.duration}s
@@ -395,6 +403,46 @@ process prepfold {
     """
 }
 
+process pdmp {
+    label 'cpu'
+    label 'psranalysis'
+    
+    shell '/bin/bash', '-veuo', 'pipefail'
+
+    time { 4.hour * task.attempt }
+
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
+    maxRetries 1
+    publishDir "${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s/dspsr/pdmp", mode: 'move'
+
+    input:
+    val psr
+
+    output:
+    path("*.F${params.pdmp_nchn}")
+    path('*.png')
+    path('pdmp*')
+
+    script:
+    """
+    base_dir="${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s/dspsr"
+    find \$base_dir -type f -name "*.ar" -exec ln -s '{}' \\;
+    ar_file=\$(find *.ar)
+    if [[ \$(echo \$ar_file | wc -l) -gt 1 ]]; then
+        echo "Error: More than one archive file found."
+    fi
+
+    pdmp \
+        -mc ${params.pdmp_mc} \
+        -ms ${params.pdmp_ms} \
+        -g \${ar_file%.ar}_pdmp.png/png \
+        \${ar_file}
+
+    # Create the publish directory
+    mkdir -p -m 771 \${base_dir}/pdmp
+    """
+}
+
 // Use the singlepixel beamformer (assumes VDIF format)
 workflow beamform_sp {
     take:
@@ -402,20 +450,28 @@ workflow beamform_sp {
         psrs
     main:
         // Beamform and fold each pulsar
-        get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr
+        if ( params.nosearch ) {
+            get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr
+        } else {
+            get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr | pdmp
+        }
 }
 
 // Skip the beamforming stage and just run dspsr
-workflow run_dspsr {
+workflow dspsr_wf {
     take:
         // Channel of individual pulsar Jnames
         psrs
     main:
-        locate_vdif_files(psrs) | get_ephemeris | dspsr
+        if ( params.nosearch ) {
+            locate_vdif_files(psrs) | get_ephemeris | dspsr
+        } else {
+            locate_vdif_files(psrs) | get_ephemeris | dspsr | pdmp
+        }
 }
 
 // Skip the beamforming stage and just run prepfold
-workflow run_prepfold {
+workflow prepfold_wf {
     take:
         // Channel of individual pulsar Jnames
         psrs

@@ -29,14 +29,20 @@ if ( params.help ) {
              |
              |Dedispersion and folding options:
              |  --nbin             Maximum phase bins to fold into [default: ${params.nbin}]
-             |  --fine_chan        Number of fine channels per coarse channel (dspsr) [default: ${params.nchan}]
+             |  --fine_chan        Amount of fine channelisation (dspsr) [default: ${params.nchan}]
              |  --tint             Length of sub-integrations (dspsr) [default: ${params.tint} s]
-             |  --nsub             Number of frequency sub-bands to use in search (prepfold) [default: ${params.nsub}]
-             |  --npart            Number of sub-integrations to use in search (prepfold) [default: ${params.npart}]
              |  --ephemeris_dir <EPHEMERIS_DIR>
              |                     A directory containing custom ephemerides to take preference
              |                     over PSRCAT. Ephemeris files must be named <Jname>.par
              |                     [default: ${params.ephemeris_dir}]
+             |
+             |Search/optimisation options:
+             |  --nosearch         Do not search in DM/P (pdmp) or DM and P/Pdot (prepfold) phase spaces
+             |  --nsub             Number of frequency sub-bands to use in search (prepfold) [default: ${params.nsub}]
+             |  --npart            Number of sub-integrations to use in search (prepfold) [default: ${params.npart}]
+             |  --pdmp_mc          Maximum number of frequency channels to use in pdmp search
+             |  --pdmp_ms          Maximum number of sub-integrations to use in pdmp search
+             |
              |Optional arguments:
              |  --vcsbeam_version  The vcsbeam module version to use [default: ${params.vcsbeam_version}]
              |  -w                 The Nextflow work directory. Delete the directory once the
@@ -50,7 +56,7 @@ if ( params.fits != true && params.vdif != true ) {
     exit(1)
 }
 
-include { beamform_sp; run_dspsr; run_prepfold } from './modules/singlepixel_module'
+include { beamform_sp; dspsr_wf; prepfold_wf } from './modules/singlepixel_module'
 include { beamform_mp } from './modules/multipixel_module'
 
 workflow {
@@ -59,7 +65,7 @@ workflow {
             Channel
                 .from(params.psrs.split(' '))
                 .set { psrs }
-            run_prepfold(psrs)
+            prepfold_wf(psrs)
         } else {
             Channel
                 .from(params.psrs.split(' '))
@@ -73,7 +79,7 @@ workflow {
             .from(params.psrs.split(' '))
             .set { psrs }
         if ( params.skip_bf ) {
-            run_dspsr(psrs)
+            dspsr_wf(psrs)
         } else {
             beamform_sp(psrs)
         }

@@ -56,8 +56,7 @@ process get_pointings {
         echo "\${pulsars[i]} \${pointing_glob}" | tee -a pointing_pairs.txt
 
         # Ensure that there is a directory for the beamformed data
-        file_format='psrfits'
-        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/\${file_format}_${params.duration}s"
+        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s"
         if [[ ! -d \$psr_dir ]]; then
             mkdir -p -m 771 \$psr_dir
         fi
@@ -135,8 +134,7 @@ process vcsbeam {
             echo "Error: Cannot find pointing for pulsar \${pulsars[i]}."
             exit 1
         fi
-        file_format='psrfits'
-        find . -type f -name "\${pointing_glob}" -exec cp {} "${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/\${file_format}_${params.duration}s" \\;
+        find . -type f -name "\${pointing_glob}" -exec cp {} "${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s" \\;
     done
     """
 }
@@ -221,6 +219,11 @@ process prepfold {
     bin_flag=""
     if [[ ! -z \$(grep BINARY ${par_file}) ]]; then
         bin_flag="-bin"
+    fi
+
+    nosearch_flag=""
+    if [[ "${params.nosearch}" == "true" ]]; then
+        nosearch_flag="-nosearch"
     fi
 
     par_input=""
