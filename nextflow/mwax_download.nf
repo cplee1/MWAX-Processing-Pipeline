@@ -1,5 +1,46 @@
 #!/usr/bin/env nextflow
 
+def help_message() {
+    log.info """
+        |mwax_download.nf: Move downloaded VCS files into a standard directory structure.
+        |
+        |USAGE:
+        |   mwax_download.nf [OPTIONS]
+        |
+        |OPTIONS:
+        |   --help
+        |       Print this help information.
+        |   -w <WORK_DIR>
+        |       The Nextflow work directory. Delete the directory once the
+        |       process is finished. [default: ${workDir}]
+        |
+        |ASVO IDS:
+        |   --asvo_id_obs <ASVO_ID_OBS>
+        |       ASVO ID of the downloaded VCS observation [no default]
+        |   --asvo_id_cals <ASVO_ID_CALS>...
+        |       Space separated list of ASVO IDs of calibrator observations
+        |       (enclosed in quotes if more than one ID is specified). [no default]
+        |       e.g. "661634 661636"
+        |
+        |DIRECTORIES:
+        |   --asvo_dir <ASVO_DIR>
+        |       Path to where ASVO downloads are stored.
+        |       [default: ${params.asvo_dir}]
+        |   --vcs_dir <VCS_DIR>
+        |       Path to where VCS data files will be stored.
+        |       [default: ${params.vcs_dir}]
+        |
+        |EXAMPLES:
+        |1. Typical usage
+        |   mwax_download.nf --asvo_id_obs 661635 --asvo_id_cals "661634 661636"
+        """.stripMargin()
+}
+
+if ( params.help ) {
+    help_message()
+    exit(0)
+}
+
 process check_files_exist {
     input:
     val asvo_id_obs
@@ -111,7 +152,7 @@ process move_download_files {
 
 workflow {
     Channel
-        .from( params.asvo_id_cals.split(',') )
+        .from( params.asvo_id_cals.split(' ') )
         .set { asvo_id_cals }
 
     check_files_exist(params.asvo_id_obs, asvo_id_cals.collect()) | check_obsids | move_download_files

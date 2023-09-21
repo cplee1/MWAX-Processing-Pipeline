@@ -1,35 +1,59 @@
 #!/usr/bin/env nextflow
 
-params.help = false
+def help_message() {
+    log.info """
+        |mwax_calibrate.nf: Calibrate using Birli and Hyperdrive.
+        |
+        |USAGE:
+        |   mwax_calibrate.nf [OPTIONS]
+        |
+        |OPTIONS:
+        |   --help
+        |       Print this help information.
+        |   --birli_version <BIRLI_VERSION>
+        |       The birli module version to use. [default: ${params.birli_version}]
+        |   --hyperdrive_version <HYPERDRIVE_VERSION>
+        |       The hyperdrive module version to use. [default: ${params.hyperdrive_version}]
+        |   -w <WORK_DIR>
+        |       The Nextflow work directory. Delete the directory once the
+        |       process is finished. [default: ${workDir}]
+        |
+        |OBSERVATION:
+        |   --obsid <OBSID>
+        |       ObsID of the VCS observation. [no default]
+        |   --calibrators <CALIBRATORS>...
+        |       Space separated list of CalID:SOURCE pairs (enclosed in
+        |       quotes if more than one pair is specified). If the source
+        |       is not found in the lookup table, will default to GLEAM-X.
+        |       e.g. "1234567890:HerA 1234567891:CenA"
+        |
+        |BIRLI:
+        |   --df <DF>
+        |       Desired frequency resolution. [default: ${params.df} kHz]
+        |   --dt <DT>
+        |       Desired time resolution. [default: ${params.dt} s]
+        |   --flag_edge_chans <FLAG_EDGE_CHANS>
+        |       Number of fine channels to flag at coarse channel edges.
+        |       (Usually 1 or 2 is enough). [default: ${params.flag_edge_chans}]
+        |   --force_birli
+        |       Force Birli to regenerate the downsampled UVFITS file.
+        |
+        |HYPERDRIVE:
+        |   --flagged_tiles <FLAGGED_TILES>...
+        |       Space separated list of flagged tiles (enclosed in quotes
+        |       if more than one flag is specified). [default: none]
+        |
+        |EXAMPLES:
+        |1. Initial calibration
+        |   mwax_calibrate.nf --obsid 1372184672 --calibrators 1372189472:3C444
+        |2. Re-calibration after initial inspection
+        |   mwax_calibrate.nf --obsid 1372184672 --calibrators 1372189472:3C444
+        |   --flagged_tiles "38 52 55 92 93 135" --flag_edge_chans 1 --force_birli
+        """.stripMargin()
+}
+
 if ( params.help ) {
-    help = """mwax_calibrate.nf: Calibrate using Birli and Hyperdrive.
-             |Required arguments:
-             |  --obsid <OBSID>    Observation ID of the VCS observation [no default]
-             |  --calibrators <CALIBRATORS>...
-             |                     Space separated list of CalID:Source pairs (enclosed in
-             |                     quotes if more than one pair is specified), e.g.
-             |                     "12345678:HerA 12345678:CenA"
-             |                     Will search source_lists.txt for a dedicated source list.
-             |                     If not found, will default to the GLEAM-X catalogue.
-             |
-             |Downsampling options:
-             |  --df <DF>          Desired frequency resolution [default: ${params.df} kHz]
-             |  --dt <DT>          Desired time resolution [default: ${params.dt} s]
-             |
-             |Flagging options:
-             |  --flagged_tiles <FLAGGED_TILES>...
-             |                     Space separated list of flagged tiles (enclosed in
-             |                     quotes if more than one flag is specified) [default: none]
-             |  --flag_edge_chans  Number of fine channels to flag at coars channel edges [default: 0]
-             |
-             |Optional arguments:
-             |  --force_birli      Force Birli to regenerate the downsampled UVFITS file
-             |  --birli_version    The birli module version to use [default: ${params.birli_version}]
-             |  --hyperdrive_version
-             |                     The hyperdrive module version to use [default: ${params.hyperdrive_version}]
-             |  -w                 The Nextflow work directory. Delete the directory once the
-             |                     process is finished [default: ${workDir}]""".stripMargin()
-    println(help)
+    help_message()
     exit(0)
 }
 

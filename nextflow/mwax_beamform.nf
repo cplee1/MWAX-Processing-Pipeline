@@ -1,58 +1,97 @@
 #!/usr/bin/env nextflow
 
-params.help = false
+def help_message() {
+    log.info """
+        |mwax_beamform.nf: Beamform and fold VCS pulsar observations.
+        |
+        |USAGE:
+        |   mwax_beamform.nf [OPTIONS]
+        |
+        |OPTIONS:
+        |   --help
+        |       Print this help information.
+        |   --vcsbeam_version <VCSBEAM_VERSION>
+        |       The vcsbeam module version to use. [default: ${params.vcsbeam_version}]
+        |   -w <WORK_DIR>
+        |       The Nextflow work directory. Delete the directory once the
+        |       process is finished. [default: ${workDir}]
+        |
+        |OBSERVATION:
+        |   --obsid <OBSID>
+        |       ObsID of the VCS observation. [no default]
+        |   --calid <CALID>
+        |       ObsID of calibrator. [no default]
+        |   --begin <BEGIN>
+        |       First GPS time to process. [no default]
+        |   --duration <DURATION>
+        |       Length of time to process. [default: ${params.duration} s]
+        |   --low_chan <LOW_CHAN>
+        |       Index of lowest coarse channel. [default: ${params.low_chan}]
+        |   --num_chan <NUM_CHAN>
+        |       Number of coarse channels to process. [default: ${params.num_chan}]
+        |   --flagged_tiles <FLAGGED_TILES>...
+        |       Space separated list of flagged tiles (enclosed in quotes if
+        |       more than one flag is specified). [default: none]
+        |
+        |FILE FORMAT (CHOOSE AT LEAST ONE):
+        |   --fits
+        |       Export beamformed data in PSRFITS format.
+        |   --vdif
+        |       Export beamformed data in VDIF format.
+        |
+        |BEAMFORMING:
+        |   --psrs <PSRS>...
+        |       Space separated list of pulsar J names (enclosed in quotes
+        |       if more than one pulsar is specified). [no default]
+        |       e.g. "J1440-6344 J1453-6413 J1456-6843"
+        |   --skip_bf
+        |       Re-fold existing data without re-beamforming.
+        |
+        |DEDISPERSION AND FOLDING:
+        |   --nbin <NBIN>
+        |       Maximum number of phase bins to fold into. [default: ${params.nbin}]
+        |   --fine_chan <FINE_CHAN>
+        |       Amount of fine channelisation (dspsr only). [default: ${params.fine_chan}]
+        |   --tint <TINT>
+        |       Length of sub-integrations (dspsr only). [default: ${params.tint} s]
+        |   --ephemeris_dir <EPHEMERIS_DIR>
+        |       A directory containing custom ephemerides to take preference
+        |       over PSRCAT. Ephemeris files must be named <Jname>.par.
+        |       [default: ${params.ephemeris_dir}]
+        |
+        |SEARCH/OPTIMISATION:
+        |   --nosearch_prepfold
+        |       Do not search DM or P/Pdot phase spaces using prepfold.
+        |   --nosearch_pdmp
+        |       Do not search DM/P phase space using pdmp.
+        |   --nsub <NSUB>
+        |       Number of frequency sub-bands to use in prepfold search. [default: ${params.nsub}]
+        |   --npart <NPART>
+        |       Number of sub-integrations to use in prepfold search. [default: ${params.npart}]
+        |   --pdmp_mc <PDMP_MC>
+        |       Number of frequency channels to use in pdmp search. [default: ${params.pdmp_mc}]
+        |   --pdmp_ms <PDMP_MS>
+        |       Number of sub-integrations to use in pdmp search. [default: ${params.pdmp_ms}]
+        |
+        |EXAMPLES:
+        |1. Beamforming
+        |   mwax_beamform.nf --obsid 1372184672 --calid 1372184552 --begin 1372186776
+        |   --duration 592 --low_chan 109 --num_chan 24 --fits
+        |   --flagged_tiles "38 52 55 92 93 135"
+        |   --psrs "J2039-3616 J2124-3358 J2241-5236"
+        |2. Re-folding beamformed data
+        |   mwax_beamform.nf --obsid 1372184672 --duration 592 --fits --skip_bf
+        |   --psrs "J2039-3616 J2124-3358 J2241-5236"
+        """.stripMargin()
+}
+
 if ( params.help ) {
-    help = """mwax_beamform.nf: Beamform and fold VCS pulsar observations.
-             |Required arguments:
-             |  --obsid <OBSID>    Observation ID you want to process [no default]
-             |  --calid <CALID>    Observation ID of calibrator you want to process [no default]
-             |  --begin <BEGIN>    First GPS time to process [no default]
-             |  --duration <DURATION>
-             |                     Duration of time to process [default: ${params.duration} s]
-             |  --low_chan <LOW_CHAN>
-             |                     Index of lowest coarse channel [default: ${params.low_chan}]
-             |  --num_chan <NUM_CHAN>
-             |                     Number of coarse channels to process [default: ${params.num_chan}]
-             |  --flagged_tiles <FLAGGED_TILES>...
-             |                     Space separated list of flagged tiles (enclosed in
-             |                     quotes if more than one flag is specified) [default: none]
-             |
-             |Beamforming options (choose at least one):
-             |  --fits             Export beamformed data in PSRFITS format
-             |  --vdif             Export beamformed data in VDIF format
-             |  --skip_bf          Re-fold existing data without re-beamforming
-             |
-             |Pointing options:
-             |  --psrs <PSRS>...   Space separated list of pulsar Jnames (enclosed in
-             |                     quotes if more than one pulsar is specified), e.g.,
-             |                     "J1440-6344 J1453-6413 J1456-6843"
-             |
-             |Dedispersion and folding options:
-             |  --nbin             Maximum phase bins to fold into [default: ${params.nbin}]
-             |  --fine_chan        Amount of fine channelisation (dspsr) [default: ${params.nchan}]
-             |  --tint             Length of sub-integrations (dspsr) [default: ${params.tint} s]
-             |  --ephemeris_dir <EPHEMERIS_DIR>
-             |                     A directory containing custom ephemerides to take preference
-             |                     over PSRCAT. Ephemeris files must be named <Jname>.par
-             |                     [default: ${params.ephemeris_dir}]
-             |
-             |Search/optimisation options:
-             |  --nosearch         Do not search in DM/P (pdmp) or DM and P/Pdot (prepfold) phase spaces
-             |  --nsub             Number of frequency sub-bands to use in search (prepfold) [default: ${params.nsub}]
-             |  --npart            Number of sub-integrations to use in search (prepfold) [default: ${params.npart}]
-             |  --pdmp_mc          Maximum number of frequency channels to use in pdmp search
-             |  --pdmp_ms          Maximum number of sub-integrations to use in pdmp search
-             |
-             |Optional arguments:
-             |  --vcsbeam_version  The vcsbeam module version to use [default: ${params.vcsbeam_version}]
-             |  -w                 The Nextflow work directory. Delete the directory once the
-             |                     process is finished [default: ${workDir}]""".stripMargin()
-    println(help)
+    help_message()
     exit(0)
 }
 
 if ( params.fits != true && params.vdif != true ) {
-    println('No file format selected.')
+    log.info('No file format selected.')
     exit(1)
 }
 
