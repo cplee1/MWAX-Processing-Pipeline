@@ -17,7 +17,7 @@ process locate_vdif_files {
     shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
-    val psr
+    val(psr)
 
     output:
     tuple val(psr), path('*.{vdif,hdr}')
@@ -47,7 +47,7 @@ process locate_fits_files {
     shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
-    val psr
+    val(psr)
 
     output:
     tuple val(psr), path('*.fits')
@@ -78,7 +78,7 @@ process get_pointings {
     shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
-    val psr
+    val(psr)
 
     output:
     tuple val(psr), path('pointings.txt'), path('flagged_tiles.txt')
@@ -233,7 +233,7 @@ process dspsr {
     tuple val(psr), path(vcsbeam_files), path(par_file)
 
     output:
-    val psr
+    val(psr)
 
     script:
     """
@@ -416,7 +416,7 @@ process pdmp {
     publishDir "${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s/dspsr/pdmp", mode: 'move'
 
     input:
-    val psr
+    val(psr)
 
     output:
     path('*.png')

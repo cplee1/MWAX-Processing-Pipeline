@@ -43,8 +43,8 @@ if ( params.help ) {
 
 process check_files_exist {
     input:
-    val asvo_id_obs
-    val asvo_id_cals
+    val(asvo_id_obs)
+    val(asvo_id_cals)
 
     output:
     tuple val(asvo_id_obs), val(asvo_id_cals), env(OBSID), env(CALIDS)

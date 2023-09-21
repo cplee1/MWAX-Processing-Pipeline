@@ -90,9 +90,9 @@ process vcsbeam {
     tuple val(psrs), val(pointings), val(pairs), val(flagged_tiles)
 
     output:
-    val psrs, emit: psrs
-    val pairs, emit: pairs
-    path '*.fits', emit: paths
+    val(psrs), emit: psrs
+    val(pairs), emit: pairs
+    path('*.fits'), emit: paths
 
     script:
     """
