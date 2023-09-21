@@ -42,6 +42,8 @@ if ( params.help ) {
 }
 
 process check_files_exist {
+    shell '/bin/bash', '-veuo', 'pipefail'
+
     input:
     val(asvo_id_obs)
     val(asvo_id_cals)
@@ -112,6 +114,8 @@ process check_obsids {
 }
 
 process move_download_files {
+    shell '/bin/bash', '-veuo', 'pipefail'
+
     input:
     tuple val(asvo_id_obs), val(asvo_id_cals), val(obsid), val(calids)
 

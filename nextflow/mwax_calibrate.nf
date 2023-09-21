@@ -63,6 +63,8 @@ else
     flag_arg = ''
 
 process check_cal_directory {
+    shell '/bin/bash', '-veuo', 'pipefail'
+
     input:
     tuple val(calid), val(cal_dir), val(source)
 
@@ -71,8 +73,6 @@ process check_cal_directory {
 
     script:
     """
-    set -eux
-
     if [[ ! -d ${cal_dir} ]]; then
         echo "Error: Cannot locate calibration directory ${cal_dir}."
         exit 1
@@ -93,6 +93,8 @@ process birli {
     label 'cpu'
     label 'birli'
 
+    shell '/bin/bash', '-veuo', 'pipefail'
+
     time { 1.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
@@ -106,14 +108,12 @@ process birli {
 
     script:
     """
-    set -eux
-    which birli
-
     if [[ -r ${cal_dir}/${calid}_birli.uvfits && ${params.force_birli} == 'false' ]]; then
         echo "Birli files found. Skipping process."
         exit 0
     fi
 
+    birli -V
     birli ${cal_dir}/*ch???*.fits \
         -m ${metafits} \
         -u ${calid}_birli.uvfits \
@@ -129,6 +129,8 @@ process hyperdrive {
     label 'gpu'
     label 'hyperdrive'
 
+    shell '/bin/bash', '-veuo', 'pipefail'
+
     time { 1.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
@@ -143,9 +145,6 @@ process hyperdrive {
     
     script:
     """
-    set -eux
-    which hyperdrive
-
     # Locate the source list
     SRC_LIST_TARGET=\$(grep ${source} ${projectDir}/source_lists.txt | awk '{print \$2}')
     SRC_LIST_BASE=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
@@ -159,6 +158,7 @@ process hyperdrive {
     fi
     
     # Perform DI calibration
+    hyperdrive di-calibrate -V
     hyperdrive di-calibrate -s \$SRC_LIST ${flag_arg} -d ${cal_dir}/${calid}_birli.uvfits ${metafits}
 
     # Plot the amplitudes and phases of the solutions
