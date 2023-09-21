@@ -222,7 +222,7 @@ process prepfold {
     fi
 
     nosearch_flag=""
-    if [[ "${params.nosearch}" == "true" ]]; then
+    if [[ "${params.nosearch_prepfold}" == "true" ]]; then
         nosearch_flag="-nosearch"
     fi
 

@@ -342,7 +342,7 @@ process prepfold {
     fi
 
     nosearch_flag=""
-    if [[ "${params.nosearch}" == "true" ]]; then
+    if [[ "${params.nosearch_prepfold}" == "true" ]]; then
         nosearch_flag="-nosearch"
     fi
 
@@ -462,7 +462,7 @@ workflow beamform_sp {
         psrs
     main:
         // Beamform and fold each pulsar
-        if ( params.nosearch ) {
+        if ( params.nosearch_pdmp ) {
             get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr
         } else {
             get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr | pdmp
@@ -475,7 +475,7 @@ workflow dspsr_wf {
         // Channel of individual pulsar Jnames
         psrs
     main:
-        if ( params.nosearch ) {
+        if ( params.nosearch_pdmp ) {
             locate_vdif_files(psrs) | get_ephemeris | dspsr
         } else {
             locate_vdif_files(psrs) | get_ephemeris | dspsr | pdmp
