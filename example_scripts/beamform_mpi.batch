@@ -1,0 +1,39 @@
+#!/bin/bash -l
+
+#SBATCH --account=mwavcs 
+#SBATCH --job-name=beamform
+#SBATCH --output=%x-%j.out
+#SBATCH --error=%x-%j.err
+#SBATCH --nodes=24
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=60gb
+#SBATCH --partition=gpuq
+#SBATCH --gres=gpu:1
+#SBATCH --time=01:00:00
+#SBATCH --export=NONE
+ 
+module use /pawsey/mwa/software/python3/modulefiles
+module load vcsbeam
+module list
+make_mwa_tied_array_beam -V
+
+# Parse command line arguments
+metafits=$1     # path to VCS metafits file
+datadir=$2      # path to combined (.dat) or MWAX (.sub) data directory
+calsol=$3       # path to calibration solution from hyperdrive (should be a .bin file)
+calmetafits=$4  # path to the calibrator observation metafits
+startgps=$5     # the starting GPS second of the observation
+duration=$6     # how many seconds to process
+
+srun -N 24 -n 24 make_mwa_tied_array_beam \
+    -m ${metafits} \
+    -b ${startgps} \
+    -T ${duration} \
+    -f 109 \
+    -d ${datadir} \
+    -P $(pwd)/pointings.txt \
+    -F $(pwd)/flagged_tiles.txt \
+    -c ${calmetafits} \
+    -C ${calsol} \
+    -p -R NONE -U 0,0 -O -X --smart
