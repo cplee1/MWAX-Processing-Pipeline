@@ -49,7 +49,7 @@ process check_files_exist {
     val(asvo_id_cals)
 
     output:
-    tuple val(asvo_id_obs), val(asvo_id_cals), env(OBSID), env(CALIDS)
+    tuple val(asvo_id_obs), val(asvo_id_cals), env(obsid), env(calids)
 
     script:
     """
@@ -61,30 +61,27 @@ process check_files_exist {
         echo "Error: Cannot locate voltage files."
         exit 1
     fi
-    OBSID=\$(find ${params.asvo_dir}/${asvo_id_obs}/*.metafits | xargs -n1 basename -s ".metafits")
+    obsid=\$(find ${params.asvo_dir}/${asvo_id_obs}/*.metafits | xargs -n1 basename -s ".metafits")
 
     # Turn the Nextflow list into a Bash array
-    ASVO_ID_CALS="${asvo_id_cals}"
-    ASVO_ID_CALS="\${ASVO_ID_CALS:1:-1}"
-    ASVO_ID_CALS="\${ASVO_ID_CALS//,/ }"
-    eval "ASVO_ID_CALS=(\$ASVO_ID_CALS)"
+    eval "asvo_id_cals=(\$(echo ${asvo_id_cals} | sed 's/\\[//;s/\\]//;s/,/ /g'))"
 
-    CALIDS=""
-    for (( i=0; i<\${#ASVO_ID_CALS[@]}; i++ )); do
-        if [[ ! -d "${params.asvo_dir}/\${ASVO_ID_CALS[i]}" ]]; then
+    calids=""
+    for (( i=0; i<\${#asvo_id_cals[@]}; i++ )); do
+        if [[ ! -d "${params.asvo_dir}/\${asvo_id_cals[i]}" ]]; then
             echo "Error: Calibrator ASVO directory does not exist."
             exit 1
         fi
-        if [[ \$(find ${params.asvo_dir}/\${ASVO_ID_CALS[i]}/*.metafits | wc -l) != 1 ]]; then
+        if [[ \$(find ${params.asvo_dir}/\${asvo_id_cals[i]}/*.metafits | wc -l) != 1 ]]; then
             echo "Error: Cannot locate calibrator metafits file."
             exit 1
         fi
-        CALID=\$(find ${params.asvo_dir}/\${ASVO_ID_CALS[i]}/*.metafits | xargs -n1 basename -s ".metafits")
-        CALIDS="\${CALIDS},\${CALID}"
+        calid=\$(find ${params.asvo_dir}/\${asvo_id_cals[i]}/*.metafits | xargs -n1 basename -s ".metafits")
+        calids="\${calids},\${calid}"
     done
 
     # Remove the leading comma
-    CALIDS="\${CALIDS:1}"
+    calids="\${calids:1}"
     """
 }
 
@@ -106,7 +103,8 @@ process check_obsids {
         else:
             return False
 
-    if not (check_obsid('${obsid}')): sys.exit(1)
+    if not (check_obsid('${obsid}')):
+        sys.exit(1)
 
     for calid in "${calids}".split(','):
         if not (check_obsid(calid)): sys.exit(1)
@@ -135,20 +133,17 @@ process move_download_files {
     fi
 
     # Turn the comma separated list into a Bash array
-    IFS=',' read -ra CALIDS <<< "${calids}"
+    IFS=',' read -ra calids <<< "${calids}"
 
     # Turn the Nextflow list into a Bash array
-    ASVO_ID_CALS="${asvo_id_cals}"
-    ASVO_ID_CALS="\${ASVO_ID_CALS:1:-1}"
-    ASVO_ID_CALS="\${ASVO_ID_CALS//,/ }"
-    eval "ASVO_ID_CALS=(\$ASVO_ID_CALS)"
+    eval "asvo_id_cals=(\$(echo ${asvo_id_cals} | sed 's/\\[//;s/\\]//;s/,/ /g'))"
 
-    for (( i=0; i<\${#CALIDS[@]}; i++ )); do
-        mkdir -p -m 771 ${params.vcs_dir}/${obsid}/cal/\${CALIDS[i]}/hyperdrive
-        mv ${params.asvo_dir}/\${ASVO_ID_CALS[i]}/* ${params.vcs_dir}/${obsid}/cal/\${CALIDS[i]}
+    for (( i=0; i<\${#calids[@]}; i++ )); do
+        mkdir -p -m 771 ${params.vcs_dir}/${obsid}/cal/\${calids[i]}/hyperdrive
+        mv ${params.asvo_dir}/\${asvo_id_cals[i]}/* ${params.vcs_dir}/${obsid}/cal/\${calids[i]}
     
-        if [[ -d ${params.asvo_dir}/\${ASVO_ID_CALS[i]} && -z "\$(ls -A ${params.asvo_dir}/\${ASVO_ID_CALS[i]})" ]]; then
-            rm -r ${params.asvo_dir}/\${ASVO_ID_CALS[i]}
+        if [[ -d ${params.asvo_dir}/\${asvo_id_cals[i]} && -z "\$(ls -A ${params.asvo_dir}/\${asvo_id_cals[i]})" ]]; then
+            rm -r ${params.asvo_dir}/\${asvo_id_cals[i]}
         fi
     done
     """

@@ -69,7 +69,7 @@ process check_cal_directory {
     tuple val(calid), val(cal_dir), val(source)
 
     output:
-    tuple val(calid), val(cal_dir), env(METAFITS), val(source)
+    tuple val(calid), val(cal_dir), env(metafits), val(source)
 
     script:
     """
@@ -80,12 +80,12 @@ process check_cal_directory {
     if [[ ! -d ${cal_dir}/hyperdrive ]]; then
         mkdir -p -m 771 ${cal_dir}/hyperdrive
     elif [[ -r ${cal_dir}/hyperdrive/hyperdrive_solutions.bin ]]; then
-        ARCHIVE="${cal_dir}/hyperdrive/archived_\$(date +%s)"
-        mkdir -p -m 771 \$ARCHIVE
-        mv ${cal_dir}/hyperdrive/*solutions* \$ARCHIVE
+        archive="${cal_dir}/hyperdrive/archived_\$(date +%s)"
+        mkdir -p -m 771 \$archive
+        mv ${cal_dir}/hyperdrive/*solutions* \$archive
     fi
 
-    METAFITS=\$(find ${cal_dir}/*.metafits)
+    metafits=\$(find ${cal_dir}/*.metafits)
     """
 }
 
@@ -151,7 +151,6 @@ process hyperdrive {
     SRC_LIST=\${SRC_LIST_BASE}/\${SRC_LIST_TARGET}
     if [[ -z \$SRC_LIST_TARGET ]]; then
         echo "Error: Source list not found in lookup table. Using GGSM catalogue."
-        #SRC_LIST_CATALOGUE=/pawsey/mwa/software/python3/srclists/master/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
         SRC_LIST_CATALOGUE=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
         SRC_LIST=srclist_1000.yaml
         hyperdrive srclist-by-beam -n 1000 -m ${metafits} \$SRC_LIST_CATALOGUE \$SRC_LIST
