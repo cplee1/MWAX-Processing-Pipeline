@@ -1,5 +1,5 @@
 # MWAX Processing Pipeline
-Nextflow pipelines for processing VCS pulsar observations. These pipelines are 
+Nextflow workflows for processing VCS pulsar observations. These pipelines are 
 more up to date but less comprehensive than mwa_search. The beamforming and
 calibration scripts should in principle be compatible with both legacy and MWAX
 VCS data, but as of yet have only been tested with MWAX data.
