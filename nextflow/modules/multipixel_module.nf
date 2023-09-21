@@ -11,6 +11,54 @@
     this workflow assumes PSRFITS output.
 */
 
+process parse_pointings {
+    shell '/bin/bash', '-veuo', 'pipefail'
+
+    input:
+    tuple val(RAJ), val(DECJ)
+
+    output:
+    path("pointings_${task.index}.txt")
+
+    script:
+    """
+    # Write label and individual coordinates to file
+    echo "${RAJ} ${DECJ} ${RAJ}_${DECJ}" | tee pointings_${task.index}.txt
+    """
+}
+
+process combine_pointings {
+    shell '/bin/bash', '-veuo', 'pipefail'
+
+    input:
+    path(pointings_files)
+
+    output:
+    tuple val(pointing_labels), path('pointings.txt'), path('pointing_pairs.txt'), path('flagged_tiles.txt')
+
+    script:
+    """
+    if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
+        echo "Error: Please provide ObsID and CalID."
+        exit 1
+    fi
+
+    if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+        echo "Error: Cannot find observation directory."
+        exit 1
+    fi
+
+    # Combine pointings into appropriate file structures
+    files=\$(find pointings*.txt)
+    cat \$files | xargs -n1 cat | tee -a pointings_labels.txt
+    cat pointings_labels.txt | awk '{print \$1 \$2}' > pointings.txt
+    cat pointings_labels.txt | awk '{print \$3 "*"\$3"*"}' > pointing_pairs.txt
+
+    # Write the tile flags to file
+    echo "${params.flagged_tiles}" | tee flagged_tiles.txt
+    """
+}
+
 process get_pointings {
     label 'psranalysis'
 
@@ -269,8 +317,10 @@ process prepfold {
         mkdir -p -m 771 \${dataproduct_dir}/prepfold
     fi
 
-    # Move files to publish directory
+    # Move prepfold files to publish directory
     mv *pfd* \${dataproduct_dir}/prepfold
+    
+    # Copy FITS files into the publish directory and delete from the work directory
     cat fitsfiles.txt | xargs -n1 cp -L -t \$dataproduct_dir
     cat fitsfiles.txt | xargs -n1 readlink -f | xargs -n1 rm
     """
@@ -279,7 +329,7 @@ process prepfold {
 // User the multipixel beamformer (assumes PSRFITS format)
 workflow beamform_mp {
     take:
-        // Channel where each item is a list of pulsar Jnames
+        // Channel where each item is a list of pulsar J names
         psrs
     main:
         // Beamform once
@@ -291,4 +341,17 @@ workflow beamform_mp {
         
         // Fold each pulsar
         get_ephemeris(psrs_flat, vcsbeam_out.pairs, vcsbeam_out.paths) | prepfold
+}
+
+workflow beamform_pt_mp {
+    take:
+        // Channel where each item is a list of pointings
+        pointings
+    main:
+        // Beamform on each pointing
+        parse_pointings(pointings)
+            .collect()
+            .set { pointings_files }
+        
+        combine_pointings(pointings_files) | vcsbeam
 }

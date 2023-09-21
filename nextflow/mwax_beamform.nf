@@ -91,36 +91,72 @@ if ( params.help ) {
 }
 
 if ( params.fits != true && params.vdif != true ) {
-    log.info('No file format selected.')
+    log.info('No file format selected. Exiting.')
     exit(1)
 }
 
-include { beamform_sp; dspsr_wf; prepfold_wf } from './modules/singlepixel_module'
+include { beamform_sp; beamform_pt_sp; dspsr_wf; prepfold_wf } from './modules/singlepixel_module'
 include { beamform_mp } from './modules/multipixel_module'
 
-workflow {
-    if ( params.fits ) {
-        if ( params.skip_bf ){
-            Channel
-                .from(params.psrs.split(' '))
-                .set { psrs }
-            prepfold_wf(psrs)
-        } else {
-            Channel
-                .from(params.psrs.split(' '))
-                .collect()
-                .set { psrs }
-            beamform_mp(psrs)
+workflow pulsars_wf {
+    take:
+        psrs
+    main:
+        if ( params.fits ) {
+            if ( params.skip_bf ) {
+                prepfold_wf(psrs)
+            } else {
+                psrs_list = psrs.collect()
+                beamform_mp(psrs_list)
+            }
         }
-    }
-    if ( params.vdif ) {
-        Channel
-            .from(params.psrs.split(' '))
-            .set { psrs }
+        if ( params.vdif ) {
+            if ( params.skip_bf ) {
+                dspsr_wf(psrs)
+            } else {
+                beamform_sp(psrs)
+            }
+        }
+}
+
+workflow pointings_wf {
+    take:
+        pointings
+    main:
         if ( params.skip_bf ) {
-            dspsr_wf(psrs)
+            log.info('Custom pointings are not folded, and thus not compatible with --skip_bf. Exiting.')
+            exit(1)
         } else {
-            beamform_sp(psrs)
+            if ( params.fits ) {
+                beamform_pt_mp(pointings)
+            }
+            if ( params.vdif ) {
+                beamform_pt_sp(pointings)
+            }
         }
+}
+
+workflow {
+    if ( params.psrs ) {
+        // Beamform on catalogued pulsars
+        psrs = Channel
+            .from(params.psrs.split(' '))
+        pulsars_wf(psrs)
+    } else if ( params.pointings ) {
+        // Beamform on pointings from command line input
+        pointings = Channel
+            .from(params.pointings.split(' '))
+            .map { pointing -> [ pointing.split('_')[0], pointing.split('_')[1] ] }
+        pointings_wf(pointings)
+    } else if ( params.pointings_file ) {
+        // Beamform on pointings from file
+        pointings = Channel
+            .fromPath(params.pointings_file)
+            .splitCsv()
+            .map { pointing -> [ pointing.split('_')[0], pointing.split('_')[1] ] }
+        pointings_wf(pointings)
+    } else {
+        log.info('No pulsars or pointings specified. Exiting.')
+        exit(1)
     }
 }

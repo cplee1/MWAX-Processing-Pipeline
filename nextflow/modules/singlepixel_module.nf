@@ -13,6 +13,12 @@
     data, which does not involve the multipixel beamformer.
 */
 
+if ( params.psrs ) {
+    publish_vdif = false
+} else {
+    publish_vdif = true
+}
+
 process locate_vdif_files {
     shell '/bin/bash', '-veuo', 'pipefail'
 
@@ -69,6 +75,38 @@ process locate_fits_files {
             echo \$old_files | xargs -n1 mv -t \$archive
         fi
     fi
+    """
+}
+
+process parse_pointings {
+    shell '/bin/bash', '-veuo', 'pipefail'
+
+    input:
+    tuple val(RAJ), val(DECJ)
+
+    output:
+    tuple env(pointing_label), path('pointings.txt'), path('flagged_tiles.txt')
+
+    script:
+    """
+    if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
+        echo "Error: Please provide ObsID and CalID."
+        exit 1
+    fi
+
+    if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+        echo "Error: Cannot find observation directory."
+        exit 1
+    fi
+
+    # Label for naming files and directories
+    pointing_label="${RAJ}_${DECJ}"
+
+    # Write equatorial coordinates to file
+    echo "${RAJ} ${DECJ}" | tee pointings.txt
+
+    # Write the tile flags to file
+    echo "${params.flagged_tiles}" | tee flagged_tiles.txt
     """
 }
 
@@ -133,6 +171,8 @@ process vcsbeam {
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 1
+
+    publishDir "${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s", mode: 'move', enabled: publish_vdif
 
     input:
     tuple val(psr), val(pointings), val(flagged_tiles)
@@ -309,6 +349,7 @@ process dspsr {
     # If there are beamformed files already, we are re-folding, so skip this step
     old_files=\$(find \$dataproduct_dir -type f)
     if [[ -z \$old_files ]]; then
+        # Copy VDIF/HDR files into the publish directory and delete from the work directory
         cat vdiffiles.txt | xargs -n1 cp -L -t \$dataproduct_dir
         cat vdiffiles.txt | xargs -n1 readlink -f | xargs -n1 rm
         cat headers.txt | xargs -n1 cp -L -t \$dataproduct_dir
@@ -397,6 +438,7 @@ process prepfold {
     # If there are beamformed files already, we are re-folding, so skip this step
     old_files=\$(find \$dataproduct_dir -type f)
     if [[ -z \$old_files ]]; then
+        # Copy FITS files into the publish directory and delete from the work directory
         cat fitsfiles.txt | xargs -n1 cp -L -t \$dataproduct_dir
         cat fitsfiles.txt | xargs -n1 readlink -f | xargs -n1 rm
     fi
@@ -467,6 +509,15 @@ workflow beamform_sp {
         } else {
             get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr | pdmp
         }
+}
+
+workflow beamform_pt_sp {
+    take:
+        // Channel of individual pointings
+        pointings
+    main:
+        // Beamform on each pointing
+        parse_pointings(pointings) | vcsbeam
 }
 
 // Skip the beamforming stage and just run dspsr
