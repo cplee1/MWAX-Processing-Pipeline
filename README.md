@@ -40,17 +40,12 @@ See the help menu for available options and typical examples:
 ## Potential future improvements
 
 `mwax_download.nf`
-
-    - Download files with [giant-squid](https://github.com/MWATelescope/giant-squid)
+* Download files with [giant-squid](https://github.com/MWATelescope/giant-squid)
 
 `mwax_calibrate.nf`
-
-    - Calibrate picket fence data
+* Calibrate picket fence data
 
 `mwax_beamform.nf`
-
-    - Take pointings as an input
-
-    - Skip the folding stage and just publish the beamformed data
-
-    - Beamform picket fence data
+* Take pointings as an input
+* Skip the folding stage and just publish the beamformed data
+* Beamform picket fence data
