@@ -419,7 +419,6 @@ process pdmp {
     val psr
 
     output:
-    path("*.F${params.pdmp_nchn}")
     path('*.png')
     path('pdmp*')
 
@@ -432,9 +431,22 @@ process pdmp {
         echo "Error: More than one archive file found."
     fi
 
+    nchan=\$(psredit -Qc nchan \$ar_file | awk '{print \$2}')
+    nsubint=\$(psredit -Qc nsubint \$ar_file | awk '{print \$2}')
+
+    mc_flag=""
+    if [ ${params.pdmp_mc} -lt \$nchan -a \$((\$nchan % ${params.pdmp_mc})) -eq 0 ]; then
+        mc_flag="-mc ${params.pdmp_mc}"
+    fi
+
+    ms_flag=""
+    if [ ${params.pdmp_ms} -lt \$nsubint -a \$((\$nsubint % ${params.pdmp_ms})) -eq 0 ]; then
+        ms_flag="-ms ${params.pdmp_ms}"
+    fi
+
     pdmp \
-        -mc ${params.pdmp_mc} \
-        -ms ${params.pdmp_ms} \
+        \$mc_flag \
+        \$ms_flag \
         -g \${ar_file%.ar}_pdmp.png/png \
         \${ar_file}
 
