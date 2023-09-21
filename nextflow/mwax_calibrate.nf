@@ -1,7 +1,40 @@
 #!/usr/bin/env nextflow
 
+params.help = false
+if ( params.help ) {
+    help = """mwax_calibrate.nf: Calibrate using Birli and Hyperdrive.
+             |Required arguments:
+             |  --obsid <OBSID>    Observation ID of the VCS observation [no default]
+             |  --calibrators <CALIBRATORS>...
+             |                     Space separated list of CalID:Source pairs (enclosed in
+             |                     quotes if more than one pair is specified), e.g.
+             |                     "12345678:HerA 12345678:CenA"
+             |                     Will search source_lists.txt for a dedicated source list.
+             |                     If not found, will default to the GLEAM-X catalogue.
+             |
+             |Downsampling options:
+             |  --df <DF>          Desired frequency resolution [default: ${params.df} kHz]
+             |  --dt <DT>          Desired time resolution [default: ${params.dt} s]
+             |
+             |Flagging options:
+             |  --flagged_tiles <FLAGGED_TILES>...
+             |                     Space separated list of flagged tiles (enclosed in
+             |                     quotes if more than one flag is specified) [default: none]
+             |  --flag_edge_chans  Number of fine channels to flag at coars channel edges [default: 0]
+             |
+             |Optional arguments:
+             |  --force_birli      Force Birli to regenerate the downsampled UVFITS file
+             |  --birli_version    The birli module version to use [default: ${params.birli_version}]
+             |  --hyperdrive_version
+             |                     The hyperdrive module version to use [default: ${params.hyperdrive_version}]
+             |  -w                 The Nextflow work directory. Delete the directory once the
+             |                     process is finished [default: ${workDir}]""".stripMargin()
+    println(help)
+    exit(0)
+}
+
 if ( params.flagged_tiles != '' )
-    flag_arg = "--tile-flags ${params.flagged_tiles.split(',').join(' ')}"
+    flag_arg = "--tile-flags ${params.flagged_tiles}"
 else
     flag_arg = ''
 
@@ -112,10 +145,9 @@ process hyperdrive {
     """
 }
 
-// Minimum execution requirements: --obsid OBSID --calibrators CALID1:SOURCE1,CALID2:SOURCE2
 workflow {
     Channel
-        .from( params.calibrators.split(',') )
+        .from( params.calibrators.split(' ') )
         .map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${params.obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
         .set { cal_info }
 
