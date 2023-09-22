@@ -22,8 +22,27 @@ process parse_pointings {
 
     script:
     """
+    # Determine a unique glob
+    IFS=':' read -r raj_hours raj_minutes raj_seconds <<< "${RAJ}"
+    IFS=':' read -r decj_degrees decj_minutes decj_seconds <<< "${DECJ}"
+    pointing_glob="*\$raj_hours:\$raj_minutes:*\$decj_degrees:\$decj_minutes:*"
+
     # Write label and individual coordinates to file
-    echo "${RAJ} ${DECJ} ${RAJ}_${DECJ}" | tee pointings_${task.index}.txt
+    echo "${RAJ} ${DECJ} ${RAJ}_${DECJ} \$pointing_glob" | tee pointings_${task.index}.txt
+
+    # Ensure that there is a directory for the beamformed data
+    psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${RAJ}_${DECJ}/psrfits_${params.duration}s"
+    if [[ ! -d \$psr_dir ]]; then
+        mkdir -p -m 771 \$psr_dir
+    fi
+
+    # Move any existing beamformed data into a subdirectory
+    old_files=\$(find \$psr_dir -type f)
+    if [[ -n \$old_files ]]; then
+        archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
+        mkdir -p -m 771 \$archive
+        echo \$old_files | xargs -n1 mv -t \$archive
+    fi
     """
 }
 
@@ -34,7 +53,7 @@ process combine_pointings {
     path(pointings_files)
 
     output:
-    tuple val(pointing_labels), path('pointings.txt'), path('pointing_pairs.txt'), path('flagged_tiles.txt')
+    tuple path('labels.txt'), path('pointings.txt'), path('pointing_pairs.txt'), path('flagged_tiles.txt')
 
     script:
     """
@@ -50,9 +69,12 @@ process combine_pointings {
 
     # Combine pointings into appropriate file structures
     files=\$(find pointings*.txt)
-    cat \$files | xargs -n1 cat | tee -a pointings_labels.txt
-    cat pointings_labels.txt | awk '{print \$1 \$2}' > pointings.txt
-    cat pointings_labels.txt | awk '{print \$3 "*"\$3"*"}' > pointing_pairs.txt
+    echo \$files | xargs -n1 cat | tee -a pointings_labels.txt
+
+    # Make text files to give to VCSBeam
+    cat pointings_labels.txt | awk '{print \$1" "\$2}' > pointings.txt
+    cat pointings_labels.txt | awk '{print \$3" "\$4}' > pointing_pairs.txt
+    cat pointings_labels.txt | awk '{print \$3}' > labels.txt
 
     # Write the tile flags to file
     echo "${params.flagged_tiles}" | tee flagged_tiles.txt
@@ -182,7 +204,7 @@ process vcsbeam {
             echo "Error: Cannot find pointing for pulsar \${pulsars[i]}."
             exit 1
         fi
-        find . -type f -name "\${pointing_glob}" -exec cp {} "${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s" \\;
+        find . -type f -name \$pointing_glob -exec cp -t "${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s" '{}' \\;
     done
     """
 }
@@ -353,5 +375,11 @@ workflow beamform_pt_mp {
             .collect()
             .set { pointings_files }
         
-        combine_pointings(pointings_files) | vcsbeam
+        combined = combine_pointings(pointings_files)
+
+        combined
+            .map { files -> [files[0].splitCsv().flatten().collect(), files[1], files[2], files[3]]}
+            .set { vcsbeam_input }
+
+        vcsbeam(vcsbeam_input)
 }

@@ -96,7 +96,7 @@ if ( params.fits != true && params.vdif != true ) {
 }
 
 include { beamform_sp; beamform_pt_sp; dspsr_wf; prepfold_wf } from './modules/singlepixel_module'
-include { beamform_mp } from './modules/multipixel_module'
+include { beamform_mp; beamform_pt_mp } from './modules/multipixel_module'
 
 workflow pulsars_wf {
     take:
