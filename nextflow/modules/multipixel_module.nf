@@ -348,8 +348,8 @@ process prepfold {
     """
 }
 
-// User the multipixel beamformer (assumes PSRFITS format)
-workflow beamform_mp {
+// Beamform and fold on catalogued pulsar in PSRFITS/multipixel mode
+workflow bf_multi_psr {
     take:
         // Channel where each item is a list of pulsar J names
         psrs
@@ -365,7 +365,8 @@ workflow beamform_mp {
         get_ephemeris(psrs_flat, vcsbeam_out.pairs, vcsbeam_out.paths) | prepfold
 }
 
-workflow beamform_pt_mp {
+// Beamform on pointing in PSRFITS/multipixel mode
+workflow bf_multi_pt {
     take:
         // Channel where each item is a list of pointings
         pointings

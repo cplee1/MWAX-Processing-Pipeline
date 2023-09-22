@@ -95,66 +95,55 @@ if ( params.fits != true && params.vdif != true ) {
     exit(1)
 }
 
-include { beamform_sp; beamform_pt_sp; dspsr_wf; prepfold_wf } from './modules/singlepixel_module'
-include { beamform_mp; beamform_pt_mp } from './modules/multipixel_module'
+include { bf_single_psr; bf_single_pt; dspsr_wf; prepfold_wf } from './modules/singlepixel_module'
+include { bf_multi_psr; bf_multi_pt } from './modules/multipixel_module'
 
-workflow pulsars_wf {
-    take:
-        psrs
-    main:
+workflow {
+    if ( params.psrs ) {
+        // Beamform and fold/search catalogued pulsars
+        psrs = Channel
+            .from(params.psrs.split(' '))
         if ( params.fits ) {
             if ( params.skip_bf ) {
                 prepfold_wf(psrs)
             } else {
                 psrs_list = psrs.collect()
-                beamform_mp(psrs_list)
+                bf_multi_psr(psrs_list)
             }
         }
         if ( params.vdif ) {
             if ( params.skip_bf ) {
                 dspsr_wf(psrs)
             } else {
-                beamform_sp(psrs)
+                bf_single_psr(psrs)
             }
         }
-}
-
-workflow pointings_wf {
-    take:
-        pointings
-    main:
+    } else if ( params.pointings ||  params.pointings_file ) {
+        // Beamform on pointings
+        if ( params.pointings ) {
+            // Get pointings from command line input
+            pointings = Channel
+                .from(params.pointings.split(' '))
+                .map { pointing -> [ pointing.split('_')[0], pointing.split('_')[1] ] }    
+        } else if ( params.pointings_file ) {
+            // Get pointings from file
+            pointings = Channel
+                .fromPath(params.pointings_file)
+                .splitCsv()
+                .flatten()
+                .map { pointing -> [ pointing.split('_')[0], pointing.split('_')[1] ] }    
+        }
         if ( params.skip_bf ) {
             log.info('Custom pointings are not folded, and thus not compatible with --skip_bf. Exiting.')
             exit(1)
         } else {
             if ( params.fits ) {
-                beamform_pt_mp(pointings)
+                bf_multi_pt(pointings)
             }
             if ( params.vdif ) {
-                beamform_pt_sp(pointings)
+                bf_single_pt(pointings)
             }
         }
-}
-
-workflow {
-    if ( params.psrs ) {
-        // Beamform on catalogued pulsars
-        psrs = Channel
-            .from(params.psrs.split(' '))
-        pulsars_wf(psrs)
-    } else if ( params.pointings ) {
-        // Beamform on pointings from command line input
-        pointings = Channel
-            .from(params.pointings.split(' '))
-            .map { pointing -> [ pointing.split('_')[0], pointing.split('_')[1] ] }
-        pointings_wf(pointings)
-    } else if ( params.pointings_file ) {
-        // Beamform on pointings from file
-        pointings = Channel
-            .fromPath(params.pointings_file)
-            .splitCsv()
-            .map { pointing -> [ pointing.split('_')[0], pointing.split('_')[1] ] }
-        pointings_wf(pointings)
     } else {
         log.info('No pulsars or pointings specified. Exiting.')
         exit(1)

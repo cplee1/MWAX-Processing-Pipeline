@@ -497,8 +497,8 @@ process pdmp {
     """
 }
 
-// Use the singlepixel beamformer (assumes VDIF format)
-workflow beamform_sp {
+// Beamform and fold on catalogued pulsar in VDIF/singlepixel mode
+workflow bf_single_psr {
     take:
         // Channel of individual pulsar Jnames
         psrs
@@ -511,7 +511,8 @@ workflow beamform_sp {
         }
 }
 
-workflow beamform_pt_sp {
+// Beamform on pointing in VDIF/singlepixel mode
+workflow bf_single_pt {
     take:
         // Channel of individual pointings
         pointings
@@ -520,7 +521,7 @@ workflow beamform_pt_sp {
         parse_pointings(pointings) | vcsbeam
 }
 
-// Skip the beamforming stage and just run dspsr
+// Fold on catalogued pulsar with dspsr and search with pdmp
 workflow dspsr_wf {
     take:
         // Channel of individual pulsar Jnames
@@ -533,7 +534,7 @@ workflow dspsr_wf {
         }
 }
 
-// Skip the beamforming stage and just run prepfold
+// Fold on catalogued pulsar with prepfold
 workflow prepfold_wf {
     take:
         // Channel of individual pulsar Jnames
