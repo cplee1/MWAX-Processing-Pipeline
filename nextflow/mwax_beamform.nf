@@ -42,8 +42,16 @@ def help_message() {
         |BEAMFORMING:
         |   --psrs <PSRS>...
         |       Space separated list of pulsar J names (enclosed in quotes
-        |       if more than one pulsar is specified). [no default]
+        |       if more than one pulsar is specified). [default: none]
         |       e.g. "J1440-6344 J1453-6413 J1456-6843"
+        |   --pointings <POINTINGS>...
+        |       Space separated list of pointings with the RA and Dec separated
+        |       by _ in the format HH:MM:SS_+DD:MM:SS [default: none]
+        |       e.g. "19:23:48.53_-20:31:52.95 19:23:40.00_-20:31:50.00"
+        |   --pointings_file <POINTINGS_FILE>
+        |       A file containing pointings with the RA and Dec separated by _
+        |       in the format HH:MM:SS_+DD:MM:SS on each line [default: none]
+        |       e.g. "19:23:48.53_-20:31:52.95\\n19:23:40.00_-20:31:50.00"
         |   --skip_bf
         |       Re-fold existing data without re-beamforming.
         |
@@ -74,7 +82,7 @@ def help_message() {
         |       Number of sub-integrations to use in pdmp search. [default: ${params.pdmp_ms}]
         |
         |EXAMPLES:
-        |1. Beamforming
+        |1. Beamforming and folding on known pulsars
         |   mwax_beamform.nf --obsid 1372184672 --calid 1372184552 --begin 1372186776
         |   --duration 592 --low_chan 109 --num_chan 24 --fits
         |   --flagged_tiles "38 52 55 92 93 135"
@@ -82,6 +90,11 @@ def help_message() {
         |2. Re-folding beamformed data
         |   mwax_beamform.nf --obsid 1372184672 --duration 592 --fits --skip_bf
         |   --psrs "J2039-3616 J2124-3358 J2241-5236"
+        |3. Beamforming on pointings
+        |   mwax_beamform.nf --obsid 1372184672 --calid 1372184552 --begin 1372186776
+        |   --duration 592 --low_chan 109 --num_chan 24 --fits
+        |   --flagged_tiles "38 52 55 92 93 135"
+        |   --pointings "20:39:16.6_-36:16:17 21:24:43.846081_-33:58:45.01036"
         """.stripMargin()
 }
 
