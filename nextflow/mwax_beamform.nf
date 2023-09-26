@@ -29,9 +29,15 @@ def help_message() {
         |       Index of lowest coarse channel. [default: ${params.low_chan}]
         |   --num_chan <NUM_CHAN>
         |       Number of coarse channels to process. [default: ${params.num_chan}]
+        |
+        |TILE FLAGGING:
         |   --flagged_tiles <FLAGGED_TILES>...
         |       Space separated list of flagged tiles (enclosed in quotes if
         |       more than one flag is specified). [default: none]
+        |   --convert_rts_flags
+        |       Convert RTS tile indices to TileNames (use this option if you
+        |       are giving tile indices to --flagged_tiles). To use this option
+        |       you must provide the CalID using --calid.
         |
         |FILE FORMAT (CHOOSE AT LEAST ONE):
         |   --fits
@@ -85,7 +91,7 @@ def help_message() {
         |1. Beamforming and folding on known pulsars
         |   mwax_beamform.nf --obsid 1372184672 --calid 1372184552 --begin 1372186776
         |   --duration 592 --low_chan 109 --num_chan 24 --fits
-        |   --flagged_tiles "38 52 55 92 93 135"
+        |   --flagged_tiles "38 52 55 92 93 135" --convert_rts_flags
         |   --psrs "J2039-3616 J2124-3358 J2241-5236"
         |2. Re-folding beamformed data
         |   mwax_beamform.nf --obsid 1372184672 --duration 592 --fits --skip_bf
@@ -93,7 +99,7 @@ def help_message() {
         |3. Beamforming on pointings
         |   mwax_beamform.nf --obsid 1372184672 --calid 1372184552 --begin 1372186776
         |   --duration 592 --low_chan 109 --num_chan 24 --fits
-        |   --flagged_tiles "38 52 55 92 93 135"
+        |   --flagged_tiles "38 52 55 92 93 135"  --convert_rts_flags
         |   --pointings "20:39:16.6_-36:16:17 21:24:43.846081_-33:58:45.01036"
         """.stripMargin()
 }

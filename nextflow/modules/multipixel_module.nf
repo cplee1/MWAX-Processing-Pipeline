@@ -56,29 +56,59 @@ process combine_pointings {
     tuple path('labels.txt'), path('pointings.txt'), path('pointing_pairs.txt'), path('flagged_tiles.txt')
 
     script:
-    """
-    if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
-        echo "Error: Please provide ObsID and CalID."
-        exit 1
-    fi
+    if ( params.convert_rts_flags ) {
+        """
+        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
+            echo "Error: Please provide ObsID and CalID."
+            exit 1
+        fi
 
-    if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-        echo "Error: Cannot find observation directory."
-        exit 1
-    fi
+        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+            echo "Error: Cannot find observation directory."
+            exit 1
+        fi
 
-    # Combine pointings into appropriate file structures
-    files=\$(find pointings*.txt)
-    echo \$files | xargs -n1 cat | tee -a pointings_labels.txt
+        # Combine pointings into appropriate file structures
+        files=\$(find pointings*.txt)
+        echo \$files | xargs -n1 cat | tee -a pointings_labels.txt
 
-    # Make text files to give to VCSBeam
-    cat pointings_labels.txt | awk '{print \$1" "\$2}' > pointings.txt
-    cat pointings_labels.txt | awk '{print \$3" "\$4}' > pointing_pairs.txt
-    cat pointings_labels.txt | awk '{print \$3}' > labels.txt
+        # Make text files to give to VCSBeam
+        cat pointings_labels.txt | awk '{print \$1" "\$2}' > pointings.txt
+        cat pointings_labels.txt | awk '{print \$3" "\$4}' > pointing_pairs.txt
+        cat pointings_labels.txt | awk '{print \$3}' > labels.txt
 
-    # Write the tile flags to file
-    echo "${params.flagged_tiles}" | tee flagged_tiles.txt
-    """
+        # Write the tile flags to file
+        echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
+        ${params.convert_flags_script} \
+            -m ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \
+            -i flagged_tiles_rts.txt \
+            -o flagged_tiles.txt
+        """
+    } else {
+        """
+        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
+            echo "Error: Please provide ObsID and CalID."
+            exit 1
+        fi
+
+        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+            echo "Error: Cannot find observation directory."
+            exit 1
+        fi
+
+        # Combine pointings into appropriate file structures
+        files=\$(find pointings*.txt)
+        echo \$files | xargs -n1 cat | tee -a pointings_labels.txt
+
+        # Make text files to give to VCSBeam
+        cat pointings_labels.txt | awk '{print \$1" "\$2}' > pointings.txt
+        cat pointings_labels.txt | awk '{print \$3" "\$4}' > pointing_pairs.txt
+        cat pointings_labels.txt | awk '{print \$3}' > labels.txt
+
+        # Write the tile flags to file
+        echo "${params.flagged_tiles}" | tee flagged_tiles.txt
+        """
+    }
 }
 
 process get_pointings {

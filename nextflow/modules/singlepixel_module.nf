@@ -88,26 +88,53 @@ process parse_pointings {
     tuple env(pointing_label), path('pointings.txt'), path('flagged_tiles.txt')
 
     script:
-    """
-    if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
-        echo "Error: Please provide ObsID and CalID."
-        exit 1
-    fi
+    if ( params.convert_rts_flags ) {
+        """
+        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
+            echo "Error: Please provide ObsID and CalID."
+            exit 1
+        fi
 
-    if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-        echo "Error: Cannot find observation directory."
-        exit 1
-    fi
+        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+            echo "Error: Cannot find observation directory."
+            exit 1
+        fi
 
-    # Label for naming files and directories
-    pointing_label="${RAJ}_${DECJ}"
+        # Label for naming files and directories
+        pointing_label="${RAJ}_${DECJ}"
 
-    # Write equatorial coordinates to file
-    echo "${RAJ} ${DECJ}" | tee pointings.txt
+        # Write equatorial coordinates to file
+        echo "${RAJ} ${DECJ}" | tee pointings.txt
 
-    # Write the tile flags to file
-    echo "${params.flagged_tiles}" | tee flagged_tiles.txt
-    """
+        # Write the tile flags to file
+        echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
+        ${params.convert_flags_script} \
+            -m ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \
+            -i flagged_tiles_rts.txt \
+            -o flagged_tiles.txt
+        """
+    } else {
+        """
+        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
+            echo "Error: Please provide ObsID and CalID."
+            exit 1
+        fi
+
+        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+            echo "Error: Cannot find observation directory."
+            exit 1
+        fi
+
+        # Label for naming files and directories
+        pointing_label="${RAJ}_${DECJ}"
+
+        # Write equatorial coordinates to file
+        echo "${RAJ} ${DECJ}" | tee pointings.txt
+
+        # Write the tile flags to file
+        echo "${params.flagged_tiles}" | tee flagged_tiles.txt
+        """
+    }
 }
 
 process get_pointings {
