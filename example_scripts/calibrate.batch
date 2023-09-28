@@ -12,10 +12,10 @@
 #SBATCH --export=NONE
  
 module use /pawsey/mwa/software/python3/modulefiles
-module load hyperdrive/peel
+module load hyperdrive
 module load birli
 module list
-hyperdrive di-calibrate -V
+hyperdrive -V
 birli -V
 
 ############################## NOTE ##############################
