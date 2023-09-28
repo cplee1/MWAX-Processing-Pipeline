@@ -1,0 +1,37 @@
+#!/bin/bash -l
+
+#SBATCH --account=mwavcs
+#SBATCH --job-name=birli
+#SBATCH --output=%x-%j.out
+#SBATCH --error=%x-%j.err
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=40
+#SBATCH --mem=370gb
+#SBATCH --partition=workq
+#SBATCH --time=01:00:00
+#SBATCH --export=NONE
+
+module use /pawsey/mwa/software/python3/modulefiles
+module load birli
+module list
+birli -V
+
+fres=40             # desired freq. resolution in kHz for cal. UVFITS
+tres=2              # desired time resolution in seconds for cal. UVFITS
+flag_edge_chans=1   # number of edge fine channels to flag
+
+# Extract the obsid of the calibrator from the metafits file
+mfits=$(basename -- "$(ls ../*.metafits)")
+obsid="${mfits%.*}"
+
+# Make the downsampled uvfits data if it's not already there
+if [[ ! -r ../${obsid}_birli.uvfits ]]; then
+    birli \
+        -m ../*.metafits \
+        -u /nvmetmp/${obsid}_birli.uvfits \
+        --avg-time-res ${tres} \
+        --avg-freq-res ${fres} \
+        --flag-edge-chans ${flag_edge_chans} \
+        ../*ch???*.fits
+    cp /nvmetmp/${obsid}_birli.uvfits ../${obsid}_birli.uvfits
+fi

@@ -1,0 +1,48 @@
+#!/bin/bash -l
+
+#SBATCH --account=mwavcs
+#SBATCH --job-name=hyperdrive
+#SBATCH --output=%x-%j.out
+#SBATCH --error=%x-%j.err
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=40
+#SBATCH --partition=gpuq
+#SBATCH --gres=tmp:50g,gpu:1
+#SBATCH --time=00:30:00
+#SBATCH --export=NONE
+ 
+module use /pawsey/mwa/software/python3/modulefiles
+module load hyperdrive
+module load srclists
+module list
+hyperdrive -V
+
+mfits=$(basename -- "$(ls ../*.metafits)")
+obsid="${mfits%.*}"
+catalogue_srclist=${SRCLISTS_DIR}/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
+srclist=srclist_1000.yaml
+
+# Create a source list from the standard puma catalogue
+hyperdrive srclist-by-beam \
+   -n 1000 \
+   -m ../*.metafits \
+   $catalogue_srclist \
+   $srclist
+
+# Perform DI calibration
+# If necessary, flag tiles with --tile-flags <Tile1> <Tile2> ... <TileN>)
+hyperdrive di-calibrate \
+    -s $srclist \
+    -d ../${obsid}_birli.uvfits \
+    ../*.metafits
+
+# Plot the solutions
+hyperdrive solutions-plot \
+    -m ../*.metafits \
+    hyperdrive_solutions.fits
+
+# Convert to Offringa format for VCSBeam
+hyperdrive solutions-convert \
+    -m ../*.metafits \
+    hyperdrive_solutions.fits \
+    hyperdrive_solutions.bin
