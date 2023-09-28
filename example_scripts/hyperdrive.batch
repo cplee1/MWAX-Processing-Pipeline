@@ -17,17 +17,36 @@ module load srclists
 module list
 hyperdrive -V
 
+# Get the ObsID from the metafits filename
 mfits=$(basename -- "$(ls ../*.metafits)")
 obsid="${mfits%.*}"
-catalogue_srclist=${SRCLISTS_DIR}/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
-srclist=srclist_1000.yaml
 
-# Create a source list from the standard puma catalogue
-hyperdrive srclist-by-beam \
-   -n 1000 \
-   -m ../*.metafits \
-   $catalogue_srclist \
-   $srclist
+# For brighter A-team sources, it may be better to use a specific sky model.
+# Browse the $srclist_base directory and select a source list, e.g.
+#
+#   CenA: model-CenA-50comp_withalpha.txt
+#   HerA: model-HerA-27comp_withalpha.txt
+#   HydA: model-HydA-58comp_withalpha.txt
+#   PicA: model-PicA-88comp_withalpha.txt
+#
+# If using a specific model, assign the source list to $srclist_target
+srclist_target=
+srclist_base=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
+
+if [[ -z $srclist_target ]]; then
+    # Create a list of 1000 sources from the standard puma catalogue
+    srclist=srclist_1000.yaml
+    catalogue_srclist=${SRCLISTS_DIR}/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
+
+    hyperdrive srclist-by-beam \
+        -n 1000 \
+        -m ../*.metafits \
+        $catalogue_srclist \
+        $srclist
+else
+    # Use a specific source list
+    srclist=${srclist_base}/${srclist_target}
+fi
 
 # Perform DI calibration
 # If necessary, flag tiles with --tile-flags <Tile1> <Tile2> ... <TileN>)

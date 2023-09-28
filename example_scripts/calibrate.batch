@@ -14,70 +14,75 @@
 module use /pawsey/mwa/software/python3/modulefiles
 module load hyperdrive
 module load birli
+module load srclists
 module list
 hyperdrive -V
 birli -V
 
-############################## NOTE ##############################
-# This script should be placed in a directory called "hyperdrive", 
-# and the calibration visibility data and metafits files should 
-# be in the parent directory (i.e., ../).
-##################################################################
-
+# Get the ObsID from the metafits filename
 mfits=$(basename -- "$(ls ../*.metafits)")
-obsid="${mfits%.*}"  # observation ID of calibrator
+obsid="${mfits%.*}"
 
-# Select a source list - in most cases this is probably okay, but for brighter A-team sources 
-# you may want to use their specific models:
+# For brighter A-team sources, it may be better to use a specific sky model.
+# Browse the $srclist_base directory and select a source list, e.g.
 #
-#    CenA: model-CenA-50comp_withalpha.txt
-#    HerA: model-HerA-27comp_withalpha.txt
-#    HydA: model-HydA-58comp_withalpha.txt
-#    PicA: model-PicA-88comp_withalpha.txt
+#   CenA: model-CenA-50comp_withalpha.txt
+#   HerA: model-HerA-27comp_withalpha.txt
+#   HydA: model-HydA-58comp_withalpha.txt
+#   PicA: model-PicA-88comp_withalpha.txt
 #
-# (have a look in the directory noted in the $srclistBase variable below for the full list.
-# If using one of the above, put the model filename in the $srclistTarget variable.
-srclistTarget=
-srclistBase=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
-if [[ -z "$srclistTarget" ]]; then
-    # Use GLEAM-X catalogue
-    srclist=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
+# If using a specific model, assign the source list to $srclist_target
+srclist_target=
+srclist_base=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
+
+if [[ -z $srclist_target ]]; then
+    # Create a list of 1000 sources from a catalogue
+    srclist=srclist_1000.yaml
+    # Standard puma
+    catalogue_srclist=${SRCLISTS_DIR}/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
+    # GLEAM-X
+    #catalogue_srclist=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
+
+    hyperdrive srclist-by-beam \
+        -n 1000 \
+        -m ../*.metafits \
+        $catalogue_srclist \
+        $srclist
 else
-    # Use specified source list
-    srclist=${srclistBase}/${srclistTarget}
+    # Use a specific source list
+    srclist=${srclist_base}/${srclist_target}
 fi
 
-fres=40  # desired freq. resolution in kHz for cal. UVFITS
-tres=2  # desired time resolution in seconds for cal. UVFITS
-flag_edge_chans=1  # number of fine channels to flag at edges of coarse channels
+fres=40             # desired freq. resolution in kHz for cal. UVFITS
+tres=2              # desired time resolution in seconds for cal. UVFITS
+flag_edge_chans=1   # number of edge fine channels to flag
 
-# DO THE THINGS
-# make the downsampled uvfits data if it's not already there
+# Make the downsampled uvfits data if it's not already there
 if [[ ! -r ../${obsid}_birli.uvfits ]]; then
     birli \
-        ../*ch???*.fits \
         -m ../*.metafits \
         -u /nvmetmp/${obsid}_birli.uvfits \
         --avg-time-res ${tres} \
         --avg-freq-res ${fres} \
-        --flag-edge-chans ${flag_edge_chans}
+        --flag-edge-chans ${flag_edge_chans} \
+        ../*ch???*.fits
     cp /nvmetmp/${obsid}_birli.uvfits ../${obsid}_birli.uvfits
 fi
 
-# do DI calibration (if necessary, flag tiles with: --tile-flags <tile1> ... <tileN>)
+# Perform DI calibration
+# If necessary, flag tiles with --tile-flags <Tile1> <Tile2> ... <TileN>)
 hyperdrive di-calibrate \
-    -s ${srclist} \
+    -s $srclist \
     -d ../${obsid}_birli.uvfits \
     ../*.metafits
 
-# plot the solutions, will create two PNGs for amps and phase:
-#       inspect these, and any that don't appear to converge (i.e., non-linear ramp in phase) 
-#       should be flagged in the above command and resubmit the job
+# Plot the solutions
 hyperdrive solutions-plot \
     -m ../*.metafits \
     hyperdrive_solutions.fits
 
-# convert to AO-style solutions, that VCSbeam can read
+# Convert to Offringa format for VCSBeam
 hyperdrive solutions-convert \
-    -m ../*.metafits hyperdrive_solutions.fits \
+    -m ../*.metafits \
+    hyperdrive_solutions.fits \
     hyperdrive_solutions.bin
