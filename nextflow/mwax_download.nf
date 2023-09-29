@@ -7,19 +7,13 @@ def help_message() {
         |USAGE:
         |   mwax_download.nf [OPTIONS]
         |
-        |OPTIONS:
-        |   --help
-        |       Print this help information.
-        |   -w <WORK_DIR>
-        |       The Nextflow work directory. Delete the directory once the
-        |       process is finished. [default: ${workDir}]
+        |   Note: Space separated lists must be enclosed in quotes.
         |
         |ASVO IDS:
         |   --asvo_id_obs <ASVO_ID_OBS>
-        |       ASVO ID of the downloaded VCS observation [no default]
+        |       ASVO ID of the downloaded VCS observation. [no default]
         |   --asvo_id_cals <ASVO_ID_CALS>...
-        |       Space separated list of ASVO IDs of calibrator observations
-        |       (enclosed in quotes if more than one ID is specified). [no default]
+        |       Space separated list of ASVO IDs of calibrator observations. [no default]
         |       e.g. "661634 661636"
         |
         |DIRECTORIES:
@@ -29,6 +23,13 @@ def help_message() {
         |   --vcs_dir <VCS_DIR>
         |       Path to where VCS data files will be stored.
         |       [default: ${params.vcs_dir}]
+        |
+        |PIPELINE OPTIONS:
+        |   --help
+        |       Print this help information.
+        |   -w <WORK_DIR>
+        |       The Nextflow work directory. Delete the directory once the
+        |       process is finished. [default: ${workDir}]
         |
         |EXAMPLES:
         |1. Typical usage
