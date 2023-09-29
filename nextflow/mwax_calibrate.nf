@@ -7,7 +7,41 @@ def help_message() {
         |USAGE:
         |   mwax_calibrate.nf [OPTIONS]
         |
-        |OPTIONS:
+        |   Note: Space separated lists must be enclosed in quotes.
+        |
+        |REQUIRED OPTIONS:
+        |   --obsid <OBSID>
+        |       ObsID of the VCS observation. [no default]
+        |   --calibrators <CALIBRATORS>...
+        |       Space separated list of CalID:SOURCE pairs. If the source
+        |       is found in the lookup table, will use its specific model.
+        |       Otherwise, default to GLEAM-X source catalogue.
+        |       e.g. "1234567890:HerA 1234567891:CenA"
+        |       Available sources: CenA, Crab, HerA, HydA, PicA, VirA.
+        |
+        |BIRLI OPTIONS:
+        |   --df <DF>
+        |       Desired frequency resolution. [default: ${params.df} kHz]
+        |   --dt <DT>
+        |       Desired time resolution. [default: ${params.dt} s]
+        |   --force_birli
+        |       Force Birli to run.
+        |   --skip_birli
+        |       Force Birli not to run. If UVFITS file cannot be found,
+        |       pipeline will exit.
+        |
+        |HYPERDRIVE OPTIONS:
+        |   --flagged_tiles <FLAGGED_TILES>...
+        |       Space separated list of flagged tiles. [default: none]
+        |   --flagged_fine_chans <FLAGGED_FINE_CHANS>
+        |       Space separated list of fine channels to flag per coarse channel.
+        |       Provide a blank string to disable this option.
+        |       [default: ${params.flagged_fine_chans}]
+        |   --src_catalogue <SRC_CATALOGUE>
+        |       Source catalogue to use if specific calibrator model is not found.
+        |       [default: ${params.src_catalogue}]
+        |
+        |PIPELINE OPTIONS:
         |   --help
         |       Print this help information.
         |   --birli_version <BIRLI_VERSION>
@@ -16,39 +50,19 @@ def help_message() {
         |       The hyperdrive module version to use. [default: ${params.hyperdrive_version}]
         |   -w <WORK_DIR>
         |       The Nextflow work directory. Delete the directory once the
-        |       process is finished. [default: ${workDir}]
-        |
-        |OBSERVATION:
-        |   --obsid <OBSID>
-        |       ObsID of the VCS observation. [no default]
-        |   --calibrators <CALIBRATORS>...
-        |       Space separated list of CalID:SOURCE pairs (enclosed in
-        |       quotes if more than one pair is specified). If the source
-        |       is not found in the lookup table, will default to GLEAM-X.
-        |       e.g. "1234567890:HerA 1234567891:CenA"
-        |
-        |BIRLI:
-        |   --df <DF>
-        |       Desired frequency resolution. [default: ${params.df} kHz]
-        |   --dt <DT>
-        |       Desired time resolution. [default: ${params.dt} s]
-        |   --flag_edge_chans <FLAG_EDGE_CHANS>
-        |       Number of fine channels to flag at coarse channel edges.
-        |       (Usually 1 or 2 is enough). [default: ${params.flag_edge_chans}]
-        |   --force_birli
-        |       Force Birli to regenerate the downsampled UVFITS file.
-        |
-        |HYPERDRIVE:
-        |   --flagged_tiles <FLAGGED_TILES>...
-        |       Space separated list of flagged tiles (enclosed in quotes
-        |       if more than one flag is specified). [default: none]
+        |       process is finished.
+        |       [default: ${workDir}]
         |
         |EXAMPLES:
         |1. Initial calibration
         |   mwax_calibrate.nf --obsid 1372184672 --calibrators 1372189472:3C444
         |2. Re-calibration after initial inspection
         |   mwax_calibrate.nf --obsid 1372184672 --calibrators 1372189472:3C444
-        |   --flagged_tiles "38 52 55 92 93 135" --flag_edge_chans 1 --force_birli
+        |   --flagged_tiles "38 52 55 92 93 135" --skip_birli
+        |3. Re-calibrate and change frequency downsampling
+        |   mwax_calibrate.nf --obsid 1372184672 --calibrators 1372189472:3C444
+        |   --flagged_tiles "38 52 55 92 93 135" --df 20 --force_birli
+        |   --flagged_fine_chans "0 1 2 3 60 61 62 63"
         """.stripMargin()
 }
 
@@ -58,9 +72,14 @@ if ( params.help ) {
 }
 
 if ( params.flagged_tiles != '' )
-    flag_arg = "--tile-flags ${params.flagged_tiles}"
+    tile_flag_opt = "--tile-flags ${params.flagged_tiles}"
 else
-    flag_arg = ''
+    tile_flag_opt = ''
+
+if ( params.flagged_fine_chans != '' )
+    chan_flag_opt = "--fine-chan-flags-per-coarse-chan ${params.flagged_fine_chans}"
+else
+    chan_flag_opt = ''
 
 process check_cal_directory {
     shell '/bin/bash', '-veuo', 'pipefail'
@@ -86,6 +105,11 @@ process check_cal_directory {
     fi
 
     metafits=\$(find ${cal_dir}/*.metafits)
+
+    if [[ \$(echo \$metafits | wc -l) -ne 1 ]]; then
+        echo "Error: Unique metafits file not found."
+        exit 1
+    fi
     """
 }
 
@@ -98,7 +122,7 @@ process birli {
     time { 1.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 2
+    maxRetries 1
 
     input:
     tuple val(calid), val(cal_dir), val(metafits), val(source)
@@ -114,12 +138,12 @@ process birli {
     fi
 
     birli -V
-    birli ${cal_dir}/*ch???*.fits \
-        -m ${metafits} \
-        -u ${calid}_birli.uvfits \
+    birli \
+        --metafits ${metafits} \
         --avg-time-res ${params.dt} \
         --avg-freq-res ${params.df} \
-        --flag-edge-chans ${params.flag_edge_chans}
+        --uvfits-out ${calid}_birli.uvfits \
+        ${cal_dir}/*ch???*.fits
 
     cp ${calid}_birli.uvfits ${cal_dir}/${calid}_birli.uvfits
     """
@@ -131,10 +155,10 @@ process hyperdrive {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time { 1.hour * task.attempt }
+    time { 30.minute * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 2
+    maxRetries 1
     publishDir "${cal_dir}/hyperdrive", mode: 'copy'
 
     input:
@@ -145,26 +169,49 @@ process hyperdrive {
     
     script:
     """
-    # Locate the source list
-    SRC_LIST_TARGET=\$(grep ${source} ${projectDir}/source_lists.txt | awk '{print \$2}')
-    SRC_LIST_BASE=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
-    SRC_LIST=\${SRC_LIST_BASE}/\${SRC_LIST_TARGET}
-    if [[ -z \$SRC_LIST_TARGET ]]; then
-        echo "Error: Source list not found in lookup table. Using GGSM catalogue."
-        SRC_LIST_CATALOGUE=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
-        SRC_LIST=srclist_1000.yaml
-        hyperdrive srclist-by-beam -n 1000 -m ${metafits} \$SRC_LIST_CATALOGUE \$SRC_LIST
+    hyperdrive -V
+
+    if [[ ! -r ${cal_dir}/${calid}_birli.uvfits ]]; then
+        echo "Error: readable UVFITS file not found."
+        exit 1
     fi
-    
+
+    # Check lookup table for a specific model
+    src_list_target=\$(grep ${source} ${projectDir}/source_lists.txt | awk '{print \$2}')
+    src_list_base=${params.models_dir}
+    src_list=\${src_list_base}/\${src_list_target}
+
+    if [[ ! -z \$src_list_target && -r \$src_list ]]; then
+        echo "Using specific model \$src_list"
+    else
+        echo "Creating list of 1000 brightest sources from catalogue."
+        src_list_catalogue=${params.src_catalogue}
+        src_list=srclist_1000.yaml
+
+        hyperdrive srclist-by-beam \
+            --metafits ${metafits} \
+            --number 1000 \
+            \$src_list_catalogue \
+            \$src_list
+    fi
+
     # Perform DI calibration
-    hyperdrive di-calibrate -V
-    hyperdrive di-calibrate -s \$SRC_LIST ${flag_arg} -d ${cal_dir}/${calid}_birli.uvfits ${metafits}
+    hyperdrive di-calibrate \
+        --source-list \$src_list \
+        --data ${cal_dir}/${calid}_birli.uvfits ${metafits} \
+        ${tile_flag_opt} \
+        ${chan_flag_opt}
 
     # Plot the amplitudes and phases of the solutions
-    hyperdrive solutions-plot -m ${metafits} hyperdrive_solutions.fits
+    hyperdrive solutions-plot \
+        --metafits ${metafits} \
+        hyperdrive_solutions.fits
 
-    # Convert to AO format for VCSBeam
-    hyperdrive solutions-convert -m ${metafits} hyperdrive_solutions.fits hyperdrive_solutions.bin
+    # Convert to Offringa format for VCSBeam
+    hyperdrive solutions-convert \
+        --metafits ${metafits} \
+        hyperdrive_solutions.fits \
+        hyperdrive_solutions.bin
     """
 }
 
@@ -174,5 +221,9 @@ workflow {
         .map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${params.obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
         .set { cal_info }
 
-    check_cal_directory(cal_info) | birli | hyperdrive
+    if ( params.skip_birli ) {
+        check_cal_directory(cal_info) | hyperdrive
+    } else {
+        check_cal_directory(cal_info) | birli | hyperdrive
+    }
 }
