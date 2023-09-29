@@ -27,8 +27,7 @@ def help_message() {
         |
         |   Target selection (choose ONE of the following)
         |   --psrs <PSRS>...
-        |       Space separated list of pulsar J names (enclosed in quotes
-        |       if more than one pulsar is specified). [default: none]
+        |       Space separated list of pulsar J names. [default: none]
         |       e.g. "J1440-6344 J1453-6413 J1456-6843"
         |   --pointings <POINTINGS>...
         |       Space separated list of pointings with the RA and Dec separated
