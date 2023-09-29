@@ -153,7 +153,7 @@ process hyperdrive {
     label 'gpu'
     label 'hyperdrive'
 
-    shell '/bin/bash', '-veuo', 'pipefail'
+    shell '/bin/bash', '-veu'
 
     time { 30.minute * task.attempt }
 
@@ -177,7 +177,7 @@ process hyperdrive {
     fi
 
     # Check lookup table for a specific model
-    src_list_target=\$(grep ${source} ${projectDir}/source_lists.txt | awk '{print \$2}')
+    src_list_target=\$(grep ${source} ${projectDir}/../source_lists.txt | awk '{print \$2}')
     src_list_base=${params.models_dir}
     src_list=\${src_list_base}/\${src_list_target}
 
