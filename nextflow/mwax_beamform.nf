@@ -7,16 +7,9 @@ def help_message() {
         |USAGE:
         |   mwax_beamform.nf [OPTIONS]
         |
-        |OPTIONS:
-        |   --help
-        |       Print this help information.
-        |   --vcsbeam_version <VCSBEAM_VERSION>
-        |       The vcsbeam module version to use. [default: ${params.vcsbeam_version}]
-        |   -w <WORK_DIR>
-        |       The Nextflow work directory. Delete the directory once the
-        |       process is finished. [default: ${workDir}]
+        |   Note: Space separated lists must be enclosed in quotes.
         |
-        |OBSERVATION:
+        |REQUIRED OPTIONS:
         |   --obsid <OBSID>
         |       ObsID of the VCS observation. [no default]
         |   --calid <CALID>
@@ -24,44 +17,46 @@ def help_message() {
         |   --begin <BEGIN>
         |       First GPS time to process. [no default]
         |   --duration <DURATION>
-        |       Length of time to process. [default: ${params.duration} s]
-        |   --low_chan <LOW_CHAN>
-        |       Index of lowest coarse channel. [default: ${params.low_chan}]
-        |   --num_chan <NUM_CHAN>
-        |       Number of coarse channels to process. [default: ${params.num_chan}]
+        |       Length of time to process. [no default]
         |
-        |TILE FLAGGING:
-        |   --flagged_tiles <FLAGGED_TILES>...
-        |       Space separated list of flagged tiles (enclosed in quotes if
-        |       more than one flag is specified). [default: none]
-        |   --convert_rts_flags
-        |       Convert RTS tile indices to TileNames (use this option if you
-        |       are giving tile indices to --flagged_tiles). To use this option
-        |       you must provide the CalID using --calid.
-        |
-        |FILE FORMAT (CHOOSE AT LEAST ONE):
+        |   Output file format (choose AT LEAST ONE of the following)
         |   --fits
         |       Export beamformed data in PSRFITS format.
         |   --vdif
         |       Export beamformed data in VDIF format.
         |
-        |BEAMFORMING:
+        |   Target selection (choose ONE of the following)
         |   --psrs <PSRS>...
         |       Space separated list of pulsar J names (enclosed in quotes
         |       if more than one pulsar is specified). [default: none]
         |       e.g. "J1440-6344 J1453-6413 J1456-6843"
         |   --pointings <POINTINGS>...
         |       Space separated list of pointings with the RA and Dec separated
-        |       by _ in the format HH:MM:SS_+DD:MM:SS [default: none]
+        |       by _ in the format HH:MM:SS_+DD:MM:SS. [default: none]
         |       e.g. "19:23:48.53_-20:31:52.95 19:23:40.00_-20:31:50.00"
         |   --pointings_file <POINTINGS_FILE>
         |       A file containing pointings with the RA and Dec separated by _
-        |       in the format HH:MM:SS_+DD:MM:SS on each line [default: none]
+        |       in the format HH:MM:SS_+DD:MM:SS on each line. [default: none]
         |       e.g. "19:23:48.53_-20:31:52.95\\n19:23:40.00_-20:31:50.00"
-        |   --skip_bf
-        |       Re-fold existing data without re-beamforming.
         |
-        |DEDISPERSION AND FOLDING:
+        |FREQUENCY SETUP OPTIONS:
+        |   --low_chan <LOW_CHAN>
+        |       Index of lowest coarse channel. [default: ${params.low_chan}]
+        |   --num_chan <NUM_CHAN>
+        |       Number of coarse channels to process. [default: ${params.num_chan}]
+        |
+        |TILE FLAGGING OPTIONS:
+        |   --flagged_tiles <FLAGGED_TILES>...
+        |       Space separated list of flagged tiles. [default: none]
+        |   --convert_rts_flags
+        |       Convert RTS tile indices to TileNames (use this option if you
+        |       are giving tile indices to --flagged_tiles). To use this option
+        |       you must provide the CalID using --calid.
+        |
+        |DEDISPERSION AND FOLDING OPTIONS:
+        |   --skip_bf
+        |       Skip straight to folding without beamforming. (Only use this option
+        |       when re-running the pipeline after initial beam formation.)
         |   --nbin <NBIN>
         |       Maximum number of phase bins to fold into. [default: ${params.nbin}]
         |   --fine_chan <FINE_CHAN>
@@ -73,7 +68,7 @@ def help_message() {
         |       over PSRCAT. Ephemeris files must be named <Jname>.par.
         |       [default: ${params.ephemeris_dir}]
         |
-        |SEARCH/OPTIMISATION:
+        |SEARCH/OPTIMISATION OPTIONS:
         |   --nosearch_prepfold
         |       Do not search DM or P/Pdot phase spaces using prepfold.
         |   --nosearch_pdmp
@@ -86,6 +81,15 @@ def help_message() {
         |       Number of frequency channels to use in pdmp search. [default: ${params.pdmp_mc}]
         |   --pdmp_ms <PDMP_MS>
         |       Number of sub-integrations to use in pdmp search. [default: ${params.pdmp_ms}]
+        |
+        |PIPELINE OPTIONS:
+        |   --help
+        |       Print this help information.
+        |   --vcsbeam_version <VCSBEAM_VERSION>
+        |       The vcsbeam module version to use. [default: ${params.vcsbeam_version}]
+        |   -w <WORK_DIR>
+        |       The Nextflow work directory. Delete the directory once the
+        |       process is finished. [default: ${workDir}]
         |
         |EXAMPLES:
         |1. Beamforming and folding on known pulsars
