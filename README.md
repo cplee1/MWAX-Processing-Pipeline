@@ -46,6 +46,5 @@ See the help menu for available options and typical examples:
 * Calibrate picket fence data
 
 `mwax_beamform.nf`
-* Take pointings as an input
-* Skip the folding stage and just publish the beamformed data
 * Beamform picket fence data
+* Beamform on all pulsars in observation
