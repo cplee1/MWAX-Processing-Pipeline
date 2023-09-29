@@ -53,9 +53,8 @@ else
     srclist=${srclist_base}/${srclist_target}
 fi
 
-fres=40             # desired freq. resolution in kHz for cal. UVFITS
-tres=2              # desired time resolution in seconds for cal. UVFITS
-flag_edge_chans=1   # number of edge fine channels to flag
+fres=40  # desired freq. resolution in kHz for cal. UVFITS
+tres=2   # desired time resolution in seconds for cal. UVFITS
 
 # Make the downsampled uvfits data if it's not already there
 if [[ ! -r ../${obsid}_birli.uvfits ]]; then
@@ -64,7 +63,6 @@ if [[ ! -r ../${obsid}_birli.uvfits ]]; then
         -u /nvmetmp/${obsid}_birli.uvfits \
         --avg-time-res ${tres} \
         --avg-freq-res ${fres} \
-        --flag-edge-chans ${flag_edge_chans} \
         ../*ch???*.fits
     cp /nvmetmp/${obsid}_birli.uvfits ../${obsid}_birli.uvfits
 fi
@@ -72,17 +70,17 @@ fi
 # Perform DI calibration
 # If necessary, flag tiles with --tile-flags <Tile1> <Tile2> ... <TileN>)
 hyperdrive di-calibrate \
-    -s $srclist \
-    -d ../${obsid}_birli.uvfits \
-    ../*.metafits
+    --source-list $srclist \
+    --data ../${obsid}_birli.uvfits ../*.metafits \
+    --fine-chan-flags-per-coarse-chan 0 1 30 31
 
 # Plot the solutions
 hyperdrive solutions-plot \
-    -m ../*.metafits \
+    --metafits ../*.metafits \
     hyperdrive_solutions.fits
 
 # Convert to Offringa format for VCSBeam
 hyperdrive solutions-convert \
-    -m ../*.metafits \
+    --metafits ../*.metafits \
     hyperdrive_solutions.fits \
     hyperdrive_solutions.bin

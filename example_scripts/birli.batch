@@ -16,9 +16,8 @@ module load birli
 module list
 birli -V
 
-fres=40             # desired freq. resolution in kHz for cal. UVFITS
-tres=2              # desired time resolution in seconds for cal. UVFITS
-flag_edge_chans=1   # number of edge fine channels to flag
+fres=40  # desired freq. resolution in kHz for cal. UVFITS
+tres=2   # desired time resolution in seconds for cal. UVFITS
 
 # Extract the obsid of the calibrator from the metafits file
 mfits=$(basename -- "$(ls ../*.metafits)")
@@ -31,7 +30,6 @@ if [[ ! -r ../${obsid}_birli.uvfits ]]; then
         --uvfits-out /nvmetmp/${obsid}_birli.uvfits \
         --avg-time-res ${tres} \
         --avg-freq-res ${fres} \
-        --flag-edge-chans ${flag_edge_chans} \
         ../*ch???*.fits
     cp /nvmetmp/${obsid}_birli.uvfits ../${obsid}_birli.uvfits
 fi
