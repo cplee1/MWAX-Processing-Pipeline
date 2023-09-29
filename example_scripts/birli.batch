@@ -27,8 +27,8 @@ obsid="${mfits%.*}"
 # Make the downsampled uvfits data if it's not already there
 if [[ ! -r ../${obsid}_birli.uvfits ]]; then
     birli \
-        -m ../*.metafits \
-        -u /nvmetmp/${obsid}_birli.uvfits \
+        --metafits ../*.metafits \
+        --uvfits-out /nvmetmp/${obsid}_birli.uvfits \
         --avg-time-res ${tres} \
         --avg-freq-res ${fres} \
         --flag-edge-chans ${flag_edge_chans} \

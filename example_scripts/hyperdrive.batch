@@ -8,9 +8,9 @@
 #SBATCH --ntasks-per-node=40
 #SBATCH --partition=gpuq
 #SBATCH --gres=tmp:50g,gpu:1
-#SBATCH --time=00:30:00
+#SBATCH --time=00:10:00
 #SBATCH --export=NONE
- 
+
 module use /pawsey/mwa/software/python3/modulefiles
 module load hyperdrive
 module load srclists
@@ -39,8 +39,8 @@ if [[ -z $srclist_target ]]; then
     catalogue_srclist=${SRCLISTS_DIR}/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
 
     hyperdrive srclist-by-beam \
-        -n 1000 \
-        -m ../*.metafits \
+        --metafits ../*.metafits \
+        --number 1000 \
         $catalogue_srclist \
         $srclist
 else
@@ -51,17 +51,16 @@ fi
 # Perform DI calibration
 # If necessary, flag tiles with --tile-flags <Tile1> <Tile2> ... <TileN>)
 hyperdrive di-calibrate \
-    -s $srclist \
-    -d ../${obsid}_birli.uvfits \
-    ../*.metafits
+    --source-list $srclist \
+    --data ../${obsid}_birli.uvfits ../*.metafits
 
 # Plot the solutions
 hyperdrive solutions-plot \
-    -m ../*.metafits \
+    --metafits ../*.metafits \
     hyperdrive_solutions.fits
 
 # Convert to Offringa format for VCSBeam
 hyperdrive solutions-convert \
-    -m ../*.metafits \
+    --metafits ../*.metafits \
     hyperdrive_solutions.fits \
     hyperdrive_solutions.bin

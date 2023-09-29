@@ -27,6 +27,11 @@ calmetafits=$4  # path to the calibrator observation metafits
 startgps=$5     # the starting GPS second of the observation
 duration=$6     # how many seconds to process
 
+if [[ $# -ne 6 ]]; then
+    echo "Invalid number of arguments given."
+    exit 1
+fi
+
 srun -N 1 -n 1 make_mwa_tied_array_beam \
     -m ${metafits} \
     -b ${startgps} \
