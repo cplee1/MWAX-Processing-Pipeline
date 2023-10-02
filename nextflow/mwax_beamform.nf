@@ -81,6 +81,18 @@ def help_message() {
         |   --pdmp_ms <PDMP_MS>
         |       Number of sub-integrations to use in pdmp search. [default: ${params.pdmp_ms}]
         |
+        |ACACIA OPTIONS:
+        |   Note: These options are only available for beamforming on pointing coordinates
+        |   in VDIF format (i.e. single-beam mode).
+        |   --acacia_profile <ACACIA_PROFILE>
+        |       Profile to upload files to on Acacia. [default: ${params.acacia_profile}]
+        |   --acacia_bucket <ACACIA_BUCKET>
+        |       Bucket to upload files to on Acacia.  [default: ${params.acacia_bucket}]
+        |   --acacia_prefix_base <ACACIA_PREFIX_BASE>
+        |       Path to the directory within the Acacia bucket where archived files
+        |       will be uploaded to under subdirectories labelled by obs ID. If no input
+        |       is provided, will not upload to Acacia. [no default]
+        |
         |PIPELINE OPTIONS:
         |   --help
         |       Print this help information.
