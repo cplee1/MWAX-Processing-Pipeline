@@ -181,6 +181,8 @@ process vcsbeam {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
+    maxForks 5
+
     time { 4.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }

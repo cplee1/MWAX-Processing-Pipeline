@@ -194,6 +194,8 @@ process vcsbeam {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
+    maxForks 5
+
     time { 1.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
@@ -558,11 +560,12 @@ process create_tarball {
 process copy_to_acacia {
     label 'copy'
 
-    shell '/bin/bash', '-veuo', 'pipefail'
-    time 1.hour
+    shell '/bin/bash', '-veu'
+    time 2.hour
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
-    maxRetries 2
+    // Nextflow doesn't see the Setonix job in the queue, so will exit
+    // However, Setonix job will complete, so ignore error
+    errorStrategy 'ignore'
 
     input:
     tuple val(psr), path(tar_file)
