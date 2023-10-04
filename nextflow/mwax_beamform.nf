@@ -17,7 +17,7 @@ def help_message() {
         |   --begin <BEGIN>
         |       First GPS time to process. [no default]
         |   --duration <DURATION>
-        |       Length of time to process. [no default]
+        |       Length of time to process in seconds. [no default]
         |
         |   Output file format (choose AT LEAST ONE of the following)
         |   --fits
@@ -91,7 +91,7 @@ def help_message() {
         |   --acacia_prefix_base <ACACIA_PREFIX_BASE>
         |       Path to the directory within the Acacia bucket where archived files
         |       will be uploaded to under subdirectories labelled by obs ID. If no input
-        |       is provided, will not upload to Acacia. [no default]
+        |       is provided, will not upload to Acacia. [default: none]
         |
         |PIPELINE OPTIONS:
         |   --help
