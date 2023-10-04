@@ -215,15 +215,28 @@ process hyperdrive {
     """
 }
 
-workflow {
-    Channel
-        .from( params.calibrators.split(' ') )
-        .map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${params.obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
-        .set { cal_info }
+workflow cal {
+    main:
+        Channel
+            .from( params.calibrators.split(' ') )
+            .map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${params.obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
+            .set { cal_info }
 
-    if ( params.skip_birli ) {
-        check_cal_directory(cal_info) | hyperdrive
+        if ( params.skip_birli ) {
+            check_cal_directory(cal_info) | hyperdrive | map { it[1] } | set { cal_dirs }
+        } else {
+            check_cal_directory(cal_info) | birli | hyperdrive | map { it[1] } | set { cal_dirs }
+        }
+    emit:
+        cal_dirs
+}
+
+workflow {
+    if ( ! params.obsid ) {
+        println "Error: No obs ID provided. Please specify with --obsid."
+    } else if ( ! params.calibrators ) {
+        println "Error: No calibrators provided. Please specify with --calibrators."
     } else {
-        check_cal_directory(cal_info) | birli | hyperdrive
+        cal | view
     }
 }
