@@ -233,9 +233,9 @@ workflow cal {
 
 workflow {
     if ( ! params.obsid ) {
-        println "Error: No obs ID provided. Please specify with --obsid."
+        println "Please specify the obs ID with --obsid."
     } else if ( ! params.calibrators ) {
-        println "Error: No calibrators provided. Please specify with --calibrators."
+        println "Please specify the calibrators with --calibrators."
     } else {
         cal | view
     }

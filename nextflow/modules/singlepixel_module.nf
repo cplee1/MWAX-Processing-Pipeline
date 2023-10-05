@@ -665,7 +665,7 @@ process copy_to_acacia {
 }
 
 // Beamform and fold on catalogued pulsar in VDIF/singlepixel mode
-workflow bf_single_psr {
+workflow spsr {
     take:
         // Channel of individual pulsar Jnames
         psrs
@@ -679,7 +679,7 @@ workflow bf_single_psr {
 }
 
 // Beamform on pointing in VDIF/singlepixel mode
-workflow bf_single_pt {
+workflow spt {
     take:
         // Channel of individual pointings
         pointings

@@ -17,6 +17,8 @@ def help_message() {
         |       Length of time to download in seconds. [no default]
         |   --offset <OFFSET>
         |       Offset from the start of the observation in seconds. [no default]
+        |   --asvo_api_key <ASVO_API_KEY>
+        |       API key corresponding to the user's ASVO account. [no default]
         |
         |CALIBRATOR DOWNLOAD OPTIONS:
         |   --calids <CALIDS>...
@@ -26,10 +28,10 @@ def help_message() {
         |   --skip_download
         |       Skip download. Instead, move files which are already downloaded.
         |   --asvo_id_obs <ASVO_ID_OBS>
-        |       ASVO job ID of the downloaded VCS observation. [default: none]
+        |       ASVO job ID of the downloaded VCS observation. [no default]
         |   --asvo_id_cals <ASVO_ID_CALS>...
         |       Space separated list of ASVO job IDs of the downloaded calibrator
-        |       observations. [default: none]
+        |       observations. [no default]
         |
         |PIPELINE OPTIONS:
         |   --help
@@ -47,7 +49,7 @@ def help_message() {
         |EXAMPLES:
         |1. Typical usage
         |   mwax_download.nf --obsid 1372184672 --calids "1372184552 1372189472"
-        |   --duration 600 --offset 0
+        |   --duration 600 --offset 0 --asvo_api_key <API_KEY>
         |2. Move files which are already downloaded
         |   mwax_download.nf --skip_download --asvo_id_obs 661635 --asvo_id_cals "661634 661636"
         """.stripMargin()
@@ -86,9 +88,6 @@ process asvo_vcs_download {
     tuple env(jobid), env(fpath), env(mode)
 
     script:
-    if ( ! params.asvo_api_key ) {
-        println 'Please provide --asvo_api_key.'
-    }
     """
     export MWA_ASVO_API_KEY="${params.asvo_api_key}"
     mode=vcs
@@ -147,9 +146,6 @@ process asvo_vis_download {
     tuple env(jobid), env(fpath), env(mode)
 
     script:
-    if ( ! params.asvo_api_key ) {
-        println 'Please provide --asvo_api_key.'
-    }
     """
     export MWA_ASVO_API_KEY="${params.asvo_api_key}"
     mode=vis
@@ -314,37 +310,40 @@ process move_data {
 
 workflow dl {
     main:
-        if ( params.skip_download ) {
-            if ( params.obsid ) {
-                Channel
-                    .from( params.asvo_id_obs )
-                    .map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vcs' ] }
-                    .set { vcs_job }
+        if ( params.obsid ) {
+            Channel
+                .from( params.asvo_id_obs )
+                .map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vcs' ] }
+                .set { vcs_job }
 
-                check_asvo_job_files(vcs_job) | check_obsid | move_data | set { obsid_out }
-            }
+            check_asvo_job_files(vcs_job) | check_obsid | move_data | set { obsid_out }
+        }
 
-            if ( params.calids ) {
-                Channel
-                    .from( params.asvo_id_cals.split(' ') )
-                    .map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vis' ] }
-                    .set { cal_jobs }
+        if ( params.calids ) {
+            Channel
+                .from( params.asvo_id_cals.split(' ') )
+                .map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vis' ] }
+                .set { cal_jobs }
 
-                check_asvo_job_files(cal_jobs) | check_obsid | move_data | set { calids_out }
-            }
-            
-        } else {
-            if ( params.obsid ) {
-                asvo_vcs_download(params.obsid) | check_asvo_job_files | check_obsid | move_data | set { obsid_out }
-            }
+            check_asvo_job_files(cal_jobs) | check_obsid | move_data | set { calids_out }
+        }
+    emit:
+        obsid = obsid_out
+        calids = calids_out
+}
 
-            if ( params.calids ) {
-                Channel
-                    .from( params.calids.split(' ') )
-                    .set { calids_in }
+workflow mv {
+    main:
+        if ( params.obsid ) {
+            asvo_vcs_download(params.obsid) | check_asvo_job_files | check_obsid | move_data | set { obsid_out }
+        }
 
-                asvo_vis_download(calids_in) | check_asvo_job_files | check_obsid | move_data | set { calids_out }
-            }
+        if ( params.calids ) {
+            Channel
+                .from( params.calids.split(' ') )
+                .set { calids_in }
+
+            asvo_vis_download(calids_in) | check_asvo_job_files | check_obsid | move_data | set { calids_out }
         }
     emit:
         obsid = obsid_out
@@ -353,8 +352,24 @@ workflow dl {
 
 workflow {
     if ( ! params.obsid && ! params.calids ) {
-        println "Error: No obs IDs provided. Please specify with --obsid or --calids."
+        println "Please specify obs IDs with --obsid or --calids."
     } else {
-        dl()
+        if ( params.skip_download ) {
+            if ( ! params.asvo_id_obs && ! params.asvo_id_cals ) {
+                println "Please specify ASVO job IDs with --asvo_id_obs and --asvo_id_cals."
+            } else {
+                mv()  // Move data
+            }
+        } else {
+            if ( ! params.asvo_api_key ) {
+                println "Please specify ASVO API key with --asvo_api_key."
+            } else {
+                if ( ! params.duration && ! params.offset ) {
+                    println "Please specify the duration and offset with --duration and --offset."
+                } else {
+                    dl()  // Download and move data
+                }
+            }
+        }
     }
 }

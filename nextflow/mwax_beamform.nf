@@ -124,15 +124,10 @@ if ( params.help ) {
     exit(0)
 }
 
-if ( params.fits != true && params.vdif != true ) {
-    log.info('No file format selected. Exiting.')
-    exit(1)
-}
+include { spsr; spt; dspsr_wf; prepfold_wf } from './modules/singlepixel_module'
+include { mpsr; mpt } from './modules/multipixel_module'
 
-include { bf_single_psr; bf_single_pt; dspsr_wf; prepfold_wf } from './modules/singlepixel_module'
-include { bf_multi_psr; bf_multi_pt } from './modules/multipixel_module'
-
-workflow {
+workflow bf {
     if ( params.psrs ) {
         // Beamform and fold/search catalogued pulsars
         psrs = Channel
@@ -142,14 +137,14 @@ workflow {
                 prepfold_wf(psrs)
             } else {
                 psrs_list = psrs.collect()
-                bf_multi_psr(psrs_list)
+                mpsr(psrs_list)  // Multipixel beamform on pulsars
             }
         }
         if ( params.vdif ) {
             if ( params.skip_bf ) {
                 dspsr_wf(psrs)
             } else {
-                bf_single_psr(psrs)
+                spsr(psrs)  // Beamform on pulsars
             }
         }
     } else if ( params.pointings ||  params.pointings_file ) {
@@ -172,14 +167,38 @@ workflow {
             exit(1)
         } else {
             if ( params.fits ) {
-                bf_multi_pt(pointings)
+                mpt(pointings)  // Multipixel beamform on pointings
             }
             if ( params.vdif ) {
-                bf_single_pt(pointings)
+                spt(pointings)  // Beamform on pointings
             }
         }
     } else {
         log.info('No pulsars or pointings specified. Exiting.')
         exit(1)
+    }
+}
+
+workflow {
+    if ( ! params.obsid ) {
+        println "Please provide the obs ID with --obsid."
+    } else if ( ! params.duration ) {
+        println "Please provide the duration with --duration."
+    } else if ( ! params.psrs && ! params.pointings && ! params.pointings_file ) {
+        println "Please provide targets with --psrs or --pointings or --pointings_file."
+    } else if ( params.fits != true && params.vdif != true ) {
+        println "Please specify the file format(s) to use with --fits or --vdif."
+    } else {
+        if ( params.skip_bf ) {
+            bf()  // Dedisperse and fold
+        } else {
+            if ( ! params.calid ) {
+                println "Please provide the obs ID of a calibrator observation with --calid."
+            } else if ( ! params.begin ) {
+                println "Please provide the begin time of the observation with --begin."
+            } else {
+                bf()  // Beamform, dedisperse, and fold
+            }
+        }
     }
 }

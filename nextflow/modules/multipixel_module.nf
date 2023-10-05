@@ -381,7 +381,7 @@ process prepfold {
 }
 
 // Beamform and fold on catalogued pulsar in PSRFITS/multipixel mode
-workflow bf_multi_psr {
+workflow mpsr {
     take:
         // Channel where each item is a list of pulsar J names
         psrs
@@ -398,7 +398,7 @@ workflow bf_multi_psr {
 }
 
 // Beamform on pointing in PSRFITS/multipixel mode
-workflow bf_multi_pt {
+workflow mpt {
     take:
         // Channel where each item is a list of pointings
         pointings
