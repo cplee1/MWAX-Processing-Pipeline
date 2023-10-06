@@ -9,6 +9,7 @@
 #SBATCH --mem=370gb
 #SBATCH --partition=workq
 #SBATCH --time=01:00:00
+#SBATCH --tmp=440G
 #SBATCH --export=NONE
 
 module use /pawsey/mwa/software/python3/modulefiles
