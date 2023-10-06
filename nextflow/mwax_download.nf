@@ -93,7 +93,7 @@ process asvo_vcs_download {
     mode=vcs
 
     # Submit job and supress failure if job already exists
-    ${params.giant_squid} submit-volt -v -w -n \
+    ${params.giant_squid} submit-volt -v -w \
         --delivery astro \
         --offset ${params.offset} \
         --duration ${params.duration} \
@@ -151,7 +151,7 @@ process asvo_vis_download {
     mode=vis
 
     # Submit job and supress failure if job already exists
-    ${params.giant_squid} submit-vis -v -w -n \
+    ${params.giant_squid} submit-vis -v -w \
         --delivery astro \
         ${obsid} \
         || true
@@ -263,7 +263,7 @@ process move_data {
     tuple val(jobid), val(fpath), val(obsid), val(mode)
 
     output:
-    val(obsid)
+    val(params.obsid)
 
     script:
     if ( mode == 'vcs' ) {
@@ -308,7 +308,7 @@ process move_data {
     }
 }
 
-workflow dl {
+workflow mv {
     main:
         if ( params.obsid ) {
             Channel
@@ -316,7 +316,7 @@ workflow dl {
                 .map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vcs' ] }
                 .set { vcs_job }
 
-            check_asvo_job_files(vcs_job) | check_obsid | move_data | set { obsid_out }
+            check_asvo_job_files(vcs_job) | check_obsid | move_data | set { obsid }
         }
 
         if ( params.calids ) {
@@ -325,17 +325,16 @@ workflow dl {
                 .map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vis' ] }
                 .set { cal_jobs }
 
-            check_asvo_job_files(cal_jobs) | check_obsid | move_data | set { calids_out }
+            check_asvo_job_files(cal_jobs) | check_obsid | move_data | set { obsid }
         }
     emit:
-        obsid = obsid_out
-        calids = calids_out
+        obsid = obsid
 }
 
-workflow mv {
+workflow dl {
     main:
         if ( params.obsid ) {
-            asvo_vcs_download(params.obsid) | check_asvo_job_files | check_obsid | move_data | set { obsid_out }
+            asvo_vcs_download(params.obsid) | check_asvo_job_files | check_obsid | move_data | set { obsid }
         }
 
         if ( params.calids ) {
@@ -343,11 +342,10 @@ workflow mv {
                 .from( params.calids.split(' ') )
                 .set { calids_in }
 
-            asvo_vis_download(calids_in) | check_asvo_job_files | check_obsid | move_data | set { calids_out }
+            asvo_vis_download(calids_in) | check_asvo_job_files | check_obsid | move_data | set { obsid }
         }
     emit:
-        obsid = obsid_out
-        calids = calids_out
+        obsid = obsid
 }
 
 workflow {

@@ -216,10 +216,12 @@ process hyperdrive {
 }
 
 workflow cal {
+    take:
+        obsid
     main:
         Channel
             .from( params.calibrators.split(' ') )
-            .map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${params.obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
+            .map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
             .set { cal_info }
 
         if ( params.skip_birli ) {
@@ -235,8 +237,8 @@ workflow {
     if ( ! params.obsid ) {
         println "Please specify the obs ID with --obsid."
     } else if ( ! params.calibrators ) {
-        println "Please specify the calibrators with --calibrators."
+        println "Please specify the calibrator(s) with --calibrators."
     } else {
-        cal | view
+        cal(params.obsid) | view
     }
 }
