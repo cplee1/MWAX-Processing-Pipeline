@@ -1,8 +1,6 @@
 # MWAX Processing Pipeline
-Nextflow workflows for processing VCS pulsar observations. These pipelines are 
-more up to date but less comprehensive than mwa_search. The beamforming and
-calibration scripts should in principle be compatible with both legacy and MWAX
-VCS data, but as of yet have only been tested with MWAX data.
+Nextflow workflows for processing VCS pulsar observations. These workflows are
+yet to be tested on legacy observations, but should in principle be compatible.
 
 ## Installation
 These scripts are setup for use on Pawsey's Garrawarla cluster, but will
@@ -12,17 +10,22 @@ and then adding the `nextflow` directory to you PATH, e.g.
 
     export PATH=${PATH}:/astro/mwavcs/${USER}/github/MWAX-Processing-Pipeline/nextflow
 
-## Preparing VCS data
-After you have downloaded the VCS observation and a calibrator observation from
-the ASVO, you can move the files into the standard directory structure using
-`mwax_download.nf`. Available options and an example are given in the help menu:
+## Downloading VCS data
+The download pipeline uses Giant Squid to submit jobs to ASVO, then waits until
+the files are downloaded and moves them into the standard directory structure.
+If the files are already downloaded, then you can skip the download step and
+instead provide the job IDs. This will move the files from the ASVO directory
+into the VCS directory. Available options and an example are given in the help menu:
     
     mwax_download.nf --help
 
 ## Calibrating VCS data
-The calibration pipeline uses Birli to preprocess the FITS data, then Hyperdrive
-to perform direction-independent amplitude/phase calibration. See the help menu
-for available options and typical examples:
+The calibration pipeline uses Birli to preprocess and then Hyperdrive to
+perform direction-independent amplitude/phase calibration an all tiles.
+Calibrator observations are specified as OBSID:SOURCE pairs. If the source is
+in the lookup table (source_lists.txt) then the specific source model will be
+used, otherwise the GLEAM catalogue will be used. See the help menu for
+available options and typical examples:
 
     mwax_calibrate.nf --help
 
@@ -39,12 +42,5 @@ See the help menu for available options and typical examples:
 
 ## Potential future improvements
 
-`mwax_download.nf`
-* Download files with [giant-squid](https://github.com/MWATelescope/giant-squid)
-
-`mwax_calibrate.nf`
-* Calibrate picket fence data
-
-`mwax_beamform.nf`
-* Beamform picket fence data
-* Beamform on all pulsars in observation
+* Calibrate and beamform picket fence data
+* Beamform on all pulsars in an observation
