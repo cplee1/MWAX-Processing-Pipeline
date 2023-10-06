@@ -13,11 +13,11 @@ def help_message() {
         |   --obsid <OBSID>
         |       ObsID of the VCS observation. [no default]
         |   --calibrators <CALIBRATORS>...
-        |       Space separated list of CalID:SOURCE pairs. If the source
-        |       is found in the lookup table, will use its specific model.
-        |       Otherwise, default to GLEAM-X source catalogue.
-        |       e.g. "1234567890:HerA 1234567891:CenA"
-        |       Available sources: CenA, Crab, HerA, HydA, PicA, VirA.
+        |       Space separated list of CalID:SOURCE pairs. For multi-component
+        |       sources, the specific model will be added to the GLEAM sky model.
+        |       The available models are: CenA, Crab, HerA, HydA, PicA, VirA.
+        |       e.g. To use specfic model: "1234567890:HerA 1234567891:CenA"
+        |       e.g. To just use GLEAM: "1234567890:- 1234567891:-"
         |
         |BIRLI OPTIONS:
         |   --df <DF>

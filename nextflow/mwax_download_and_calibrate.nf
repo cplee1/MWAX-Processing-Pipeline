@@ -21,11 +21,11 @@ def help_message() {
         |   --asvo_api_key <ASVO_API_KEY>
         |       API key corresponding to the user's ASVO account. [no default]
         |   --calibrators <CALIBRATORS>...
-        |       Space separated list of CalID:SOURCE pairs. If the source
-        |       is found in the lookup table, will use its specific model.
-        |       Otherwise, default to GLEAM-X source catalogue.
-        |       e.g. "1234567890:HerA 1234567891:CenA"
-        |       Available sources: CenA, Crab, HerA, HydA, PicA, VirA.
+        |       Space separated list of CalID:SOURCE pairs. For multi-component
+        |       sources, the specific model will be added to the GLEAM sky model.
+        |       The available models are: CenA, Crab, HerA, HydA, PicA, VirA.
+        |       e.g. To use specfic model: "1234567890:HerA 1234567891:CenA"
+        |       e.g. To just use GLEAM: "1234567890:- 1234567891:-"
         |
         |BIRLI OPTIONS:
         |   --df <DF>
@@ -41,7 +41,7 @@ def help_message() {
         |       Provide a blank string to disable this option.
         |       [default: ${params.flagged_fine_chans}]
         |   --src_catalogue <SRC_CATALOGUE>
-        |       Source catalogue to use if specific calibrator model is not found.
+        |       Source catalogue to use.
         |       [default: ${params.src_catalogue}]
         |
         |PIPELINE OPTIONS:

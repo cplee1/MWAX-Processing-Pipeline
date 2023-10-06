@@ -78,6 +78,62 @@ process birli {
     """
 }
 
+process get_source_list {
+    label 'cpu'
+    label 'srclist'
+
+    shell '/bin/bash', '-veu'
+
+    time { 5.minute * task.attempt }
+
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 4
+    publishDir "${cal_dir}/hyperdrive", mode: 'copy'
+
+    input:
+    tuple val(calid), val(cal_dir), val(metafits), val(source)
+
+    output:
+    tuple val(calid), val(cal_dir), val(metafits), path('srclist_1000.yaml')
+
+    script:
+    """
+    if [[ ! -r ${params.src_catalogue} ]]; then
+        echo "Error: Source catalogue cannot be found."
+        exit 1
+    fi
+
+    srclist=srclist_1000.yaml
+
+    echo "Creating list of 1000 brightest sources from catalogue."
+    hyperdrive srclist-by-beam \
+        --metafits ${metafits} \
+        --number 1000 \
+        ${params.src_catalogue} \
+        \$srclist
+
+    echo "Looking for specific source model."
+    specific_model=\$(grep ${source} ${projectDir}/../source_lists.txt | awk '{print \$2}')
+    if [[ -z \$specific_model ]]; then
+        echo "No specific model found in lookup table."
+        echo "Using catalogue sources only."
+    elif [[ ! -r ${params.models_dir}/\$specific_model ]]; then
+        echo "Specific model found in lookup table does not exist: ${params.models_dir}/\${specific_model}"
+        echo "Using catalogue sources only."
+    else
+        echo "Specific model found: ${params.models_dir}/\${specific_model}"
+        echo "Converting model to yaml format."
+        hyperdrive srclist-by-beam \
+            --metafits ${metafits} \
+            --number 1 \
+            ${params.models_dir}/\$specific_model \
+            srclist_specific.yaml
+        echo "Adding model to source list."
+        cat srclist_specific.yaml >> \$srclist
+    fi
+    """
+}
+
 process hyperdrive {
     label 'gpu'
     label 'hyperdrive'
@@ -91,7 +147,7 @@ process hyperdrive {
     publishDir "${cal_dir}/hyperdrive", mode: 'copy'
 
     input:
-    tuple val(calid), val(cal_dir), val(metafits), val(source)
+    tuple val(calid), val(cal_dir), val(metafits), path(srclist)
 
     output:
     tuple val(calid), val(cal_dir), path("hyperdrive_solutions.fits"), path("hyperdrive_solutions.bin"), path("*.png")
@@ -105,28 +161,9 @@ process hyperdrive {
         exit 1
     fi
 
-    # Check lookup table for a specific model
-    src_list_target=\$(grep ${source} ${projectDir}/../source_lists.txt | awk '{print \$2}')
-    src_list_base=${params.models_dir}
-    src_list=\${src_list_base}/\${src_list_target}
-
-    if [[ ! -z \$src_list_target && -r \$src_list ]]; then
-        echo "Using specific model \$src_list"
-    else
-        echo "Creating list of 1000 brightest sources from catalogue."
-        src_list_catalogue=${params.src_catalogue}
-        src_list=srclist_1000.yaml
-
-        hyperdrive srclist-by-beam \
-            --metafits ${metafits} \
-            --number 1000 \
-            \$src_list_catalogue \
-            \$src_list
-    fi
-
     # Perform DI calibration
     hyperdrive di-calibrate \
-        --source-list \$src_list \
+        --source-list ${srclist} \
         --data ${cal_dir}/${calid}_birli.uvfits ${metafits} \
         ${tile_flag_opt} \
         ${chan_flag_opt}
@@ -154,9 +191,18 @@ workflow cal {
             .set { cal_info }
 
         if ( params.skip_birli ) {
-            check_cal_directory(cal_info) | hyperdrive | map { it[1] } | set { cal_dirs }
+            check_cal_directory(cal_info)
+                | get_source_list
+                | hyperdrive
+                | map { it[1] }
+                | set { cal_dirs }
         } else {
-            check_cal_directory(cal_info) | birli | hyperdrive | map { it[1] } | set { cal_dirs }
+            check_cal_directory(cal_info)
+                | birli
+                | get_source_list
+                | hyperdrive
+                | map { it[1] }
+                | set { cal_dirs }
         }
     emit:
         cal_dirs
