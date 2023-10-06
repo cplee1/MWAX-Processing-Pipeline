@@ -25,7 +25,7 @@ calsol=$3       # path to calibration solution from hyperdrive (should be a .bin
 calmetafits=$4  # path to the calibrator observation metafits
 startgps=$5     # the starting GPS second of the observation
 duration=$6     # how many seconds to process
-lowchan=109     # lowest coarse channel
+lowchan=$7      # lowest coarse channel
 
 if [[ $# -ne 7 ]]; then
     echo "Invalid number of arguments given."
