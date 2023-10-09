@@ -94,7 +94,7 @@ process get_source_list {
     tuple val(calid), val(cal_dir), val(metafits), val(source)
 
     output:
-    tuple val(calid), val(cal_dir), val(metafits), path('srclist_1000.yaml')
+    tuple val(calid), val(cal_dir), val(metafits), path('srclist.yaml')
 
     script:
     """
@@ -103,9 +103,8 @@ process get_source_list {
         exit 1
     fi
 
-    srclist=srclist_1000.yaml
-
     echo "Creating list of 1000 brightest sources from catalogue."
+    srclist=srclist_1000.yaml
     hyperdrive srclist-by-beam \
         --metafits ${metafits} \
         --number 1000 \
@@ -116,21 +115,23 @@ process get_source_list {
     specific_model=\$(grep ${source} ${projectDir}/../source_lists.txt | awk '{print \$2}')
     if [[ -z \$specific_model ]]; then
         echo "No specific model found in lookup table."
-        echo "Using catalogue sources only."
+        echo "Using catalogue sources."
     elif [[ ! -r ${params.models_dir}/\$specific_model ]]; then
         echo "Specific model found in lookup table does not exist: ${params.models_dir}/\${specific_model}"
-        echo "Using catalogue sources only."
+        echo "Using catalogue sources."
     else
         echo "Specific model found: ${params.models_dir}/\${specific_model}"
         echo "Converting model to yaml format."
+        srclist=srclist_specific.yaml
         hyperdrive srclist-by-beam \
             --metafits ${metafits} \
             --number 1 \
             ${params.models_dir}/\$specific_model \
-            srclist_specific.yaml
-        echo "Adding model to source list."
-        cat srclist_specific.yaml >> \$srclist
+            \$srclist
+        echo "Using specific source model."
     fi
+
+    mv \$srclist srclist.yaml
     """
 }
 
