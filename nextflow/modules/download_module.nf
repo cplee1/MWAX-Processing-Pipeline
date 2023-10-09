@@ -151,7 +151,7 @@ process check_asvo_job_files {
     fi
 
     # Is there a metafits file in the directory?
-    if [[ \$(find ${fpath} "*.metafits" | wc -l) != 1 ]]; then
+    if [[ \$(find ${fpath} -name "*.metafits" | wc -l) != 1 ]]; then
         echo "Error: Cannot locate metafits file."
         exit 4
     fi
@@ -221,8 +221,15 @@ process move_data {
         mv ${fpath}/*.metafits ${params.vcs_dir}/${obsid}
         
         # Delete the job directory
-        if [[ -d ${fpath} && -z "\$(ls -A ${fpath})" ]]; then
-            rm -r ${fpath}
+        if [[ -d ${fpath} ]]; then
+            if [[ -r ${fpath}/MWA_ASVO_README.md ]]; then
+                rm ${fpath}/MWA_ASVO_README.md
+            fi
+            if [[ -z "\$(ls -A ${fpath})" ]]; then
+                rm -r ${fpath}
+            else
+                echo "Job directory not empty: ${fpath}."
+            fi
         fi
         """
     } else if ( mode == 'vis' ) {
@@ -239,8 +246,15 @@ process move_data {
         mv ${fpath}/* ${params.vcs_dir}/${params.obsid}/cal/${obsid}
 
         # Delete the job directory
-        if [[ -d ${fpath} && -z "\$(ls -A ${fpath})" ]]; then
-            rm -r ${fpath}
+        if [[ -d ${fpath} ]]; then
+            if [[ -r ${fpath}/MWA_ASVO_README.md ]]; then
+                rm ${fpath}/MWA_ASVO_README.md
+            fi
+            if [[ -z "\$(ls -A ${fpath})" ]]; then
+                rm -r ${fpath}
+            else
+                echo "Job directory not empty: ${fpath}."
+            fi
         fi
         """
     } else {
