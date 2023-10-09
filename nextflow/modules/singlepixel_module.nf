@@ -13,6 +13,12 @@
     data, which does not involve the multipixel beamformer.
 */
 
+if ( params.psrs || params.acacia_prefix_base ) {
+    publish_vdif = false
+} else {
+    publish_vdif = true
+}
+
 process locate_vdif_files {
     shell '/bin/bash', '-veuo', 'pipefail'
 
@@ -72,6 +78,65 @@ process locate_fits_files {
     """
 }
 
+process parse_pointings {
+    shell '/bin/bash', '-veuo', 'pipefail'
+
+    input:
+    tuple val(RAJ), val(DECJ)
+
+    output:
+    tuple env(pointing_label), path('pointings.txt'), path('flagged_tiles.txt')
+
+    script:
+    if ( params.convert_rts_flags ) {
+        """
+        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
+            echo "Error: Please provide ObsID and CalID."
+            exit 1
+        fi
+
+        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+            echo "Error: Cannot find observation directory."
+            exit 1
+        fi
+
+        # Label for naming files and directories
+        pointing_label="${RAJ}_${DECJ}"
+
+        # Write equatorial coordinates to file
+        echo "${RAJ} ${DECJ}" | tee pointings.txt
+
+        # Write the tile flags to file
+        echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
+        ${params.convert_flags_script} \
+            -m ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \
+            -i flagged_tiles_rts.txt \
+            -o flagged_tiles.txt
+        """
+    } else {
+        """
+        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
+            echo "Error: Please provide ObsID and CalID."
+            exit 1
+        fi
+
+        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+            echo "Error: Cannot find observation directory."
+            exit 1
+        fi
+
+        # Label for naming files and directories
+        pointing_label="${RAJ}_${DECJ}"
+
+        # Write equatorial coordinates to file
+        echo "${RAJ} ${DECJ}" | tee pointings.txt
+
+        # Write the tile flags to file
+        echo "${params.flagged_tiles}" | tee flagged_tiles.txt
+        """
+    }
+}
+
 process get_pointings {
     label 'psranalysis'
 
@@ -129,10 +194,14 @@ process vcsbeam {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time { 1.hour * task.attempt }
+    maxForks 5
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    time { 2.hour * task.attempt }
+
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
+
+    publishDir "${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s", mode: 'move', enabled: publish_vdif
 
     input:
     tuple val(psr), val(pointings), val(flagged_tiles)
@@ -172,6 +241,16 @@ process get_ephemeris {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
+    errorStrategy {
+        log.info("task ${task.hash} failed with code ${task.exitStatus}")
+        if ( task.exitStatus == 2 ) {
+            log.info('Pulsar name string is blank.')
+        } else if ( task.exitStatus == 3 ) {
+            log.info("Pulsar ${psr} not found in catalogue.")
+        }
+        return 'ignore'
+    }
+
     input:
     tuple val(psr), val(vcsbeam_files)
 
@@ -182,7 +261,7 @@ process get_ephemeris {
     """
     if [[ -z ${psr} ]]; then
         echo "Error: Pulsar name string is blank."
-        exit 1
+        exit 2
     fi
 
     par_file=${psr}.par
@@ -197,7 +276,7 @@ process get_ephemeris {
         psrcat -e ${psr} > \$par_file
         if [[ ! -z \$(grep WARNING \$par_file) ]]; then
             echo "Error: Pulsar not in catalogue."
-            exit 1
+            exit 3
         fi
     fi
 
@@ -224,7 +303,7 @@ process dspsr {
     
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time { 1.hour * task.attempt }
+    time { 2.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 2
@@ -307,8 +386,9 @@ process dspsr {
     mv *.ar *.png \${dataproduct_dir}/dspsr
 
     # If there are beamformed files already, we are re-folding, so skip this step
-    old_files=\$(find \$dataproduct_dir -type f)
+    old_files=\$(find \$dataproduct_dir -type f -name "*.vdif")
     if [[ -z \$old_files ]]; then
+        # Copy VDIF/HDR files into the publish directory and delete from the work directory
         cat vdiffiles.txt | xargs -n1 cp -L -t \$dataproduct_dir
         cat vdiffiles.txt | xargs -n1 readlink -f | xargs -n1 rm
         cat headers.txt | xargs -n1 cp -L -t \$dataproduct_dir
@@ -324,7 +404,7 @@ process prepfold {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time 1.hour
+    time 2.hour
 
     errorStrategy { task.attempt == 1 ? 'retry' : 'ignore' }
     maxRetries 1
@@ -395,8 +475,9 @@ process prepfold {
     mv *pfd* \${dataproduct_dir}/prepfold
 
     # If there are beamformed files already, we are re-folding, so skip this step
-    old_files=\$(find \$dataproduct_dir -type f)
+    old_files=\$(find \$dataproduct_dir -type f -name "*.fits")
     if [[ -z \$old_files ]]; then
+        # Copy FITS files into the publish directory and delete from the work directory
         cat fitsfiles.txt | xargs -n1 cp -L -t \$dataproduct_dir
         cat fitsfiles.txt | xargs -n1 readlink -f | xargs -n1 rm
     fi
@@ -455,38 +536,209 @@ process pdmp {
     """
 }
 
-// Use the singlepixel beamformer (assumes VDIF format)
-workflow beamform_sp {
+process create_tarball {
+    label 'cpu'
+    label 'tar'
+
+    shell '/bin/bash', '-veuo', 'pipefail'
+
+    time 1.hour
+
+    input:
+    tuple val(psr), path(vcsbeam_files)
+
+    output:
+    tuple val(psr), path('*.tar')
+
+    script:
+    """
+    dir_name="${psr}"
+    mkdir -p "\$dir_name"
+
+    cp -t "\$dir_name" *.vdif
+    cp -t "\$dir_name" *.hdr
+
+    # Follow symlinks and archive
+    tar -cvhf "\${PWD}/\${dir_name}.tar" "\$dir_name"
+
+    # Follow links and delete vdif
+    find \$PWD -mindepth 1 -maxdepth 1 -name "*.vdif" | xargs -n1 readlink -f | xargs -n1 rm
+    """
+}
+
+// Script courtesy of Bradley Meyers
+process copy_to_acacia {
+    label 'copy'
+
+    shell '/bin/bash', '-veu'
+    time 2.hour
+
+    // Nextflow doesn't see the Setonix job in the queue, so will exit
+    // However, Setonix job will complete, so ignore error
+    errorStrategy 'ignore'
+
+    input:
+    tuple val(psr), path(tar_file)
+
+    script:
+    """
+    # Defining variables that will hold the names related to your access, buckets and objects to be stored in Acacia
+    profileName="${params.acacia_profile}"
+    bucketName="${params.acacia_bucket}"
+    prefixPath="${params.acacia_prefix_base}/${params.obsid}"
+    fullPathInAcacia="\${profileName}:\${bucketName}/\${prefixPath}"  # Note the colon(:) when using rclone
+
+    # Local storage variables
+    tarFileOrigin=\$(find \$PWD -name "*.tar" | xargs -n1 readlink -f)
+    workingDir=\$(dirname \$tarFileOrigin)
+    tarFileNames=( \$(basename \$tarFileOrigin) )
+
+    #----------------
+    # Check if Acacia definitions make sense, and if you can transfer objects into the desired bucket
+    echo "Checking that the profile exists"
+    rclone config show | grep "\${profileName}" > /dev/null; exitcode=\$?
+    if [ \$exitcode -ne 0 ]; then
+        echo "The given profileName=\$profileName seems not to exist in the user configuration of rclone"
+        echo "Exiting the script with non-zero code in order to inform job dependencies not to continue."
+        exit 1
+    fi
+    echo "Checking the bucket exists and that you have writing access"
+    rclone lsd "\${profileName}:\${bucketName}" > /dev/null; exitcode=\$?  # Note the colon(:) when using rclone
+    if [ \$exitcode -ne 0 ]; then
+        echo "The bucket intended to receive the data does not exist: \${profileName}:\${bucketName}"
+        echo "Trying to create it"
+        rclone mkdir "\${profileName}:\${bucketName}"; exitcode=\$?
+        if [ \$exitcode -ne 0 ]; then
+            echo "Creation of bucket failed"
+            echo "The bucket name or the profile name may be wrong: \${profileName}:\${bucketName}"
+            echo "Exiting the script with non-zero code in order to inform job dependencies not to continue."
+            exit 1
+        fi
+    fi
+    echo "Checking if a test file can be trasferred into the desired full path in Acacia"
+    testFile=test_file_\${SLURM_JOBID}.txt
+    echo "File for test" > "\${testFile}"
+    rclone copy "\${testFile}" "\${fullPathInAcacia}/"; exitcode=\$?
+    if [ \$exitcode -ne 0 ]; then
+        echo "The test file \$testFile cannot be transferred into \${fullPathInAcacia}"
+        echo "Exiting the script with non-zero code in order to inform job dependencies not to continue."
+        exit 1
+    fi
+    echo "Checking if the test file can be listed in Acacia"
+    listResult=\$(rclone lsl "\${fullPathInAcacia}/\${testFile}")
+    if [ -z "\$listResult" ]; then
+        echo "Problems occurred during the listing of the test file \${testFile} in \${fullPathInAcacia}"
+        echo "Exiting the script with non-zero code in order to inform job dependencies not to continue."
+        exit 1
+    fi
+    echo "Removing test file from Acacia"
+    rclone delete "\${fullPathInAcacia}/\${testFile}"; exitcode=\$?
+    if [ \$exitcode -ne 0 ]; then
+        echo "The test file \$testFile cannot be removed from \${fullPathInAcacia}"
+        echo "Exiting the script with non-zero code in order to inform job dependencies not to continue."
+        exit 1
+    fi
+    rm \$testFile
+    
+    # ----------------
+    # Defining the working dir and cd into it
+    echo "Checking that the working directory exists"
+    if ! [ -d \$workingDir ]; then
+        echo "The working directory \$workingDir does not exist"
+        echo "Exiting the script with non-zero code in order to inform job dependencies not to continue."
+        exit 1
+    else
+        cd \$workingDir
+    fi
+    
+    #-----------------
+    # Perform the transfer of the tar file into the working directory and check for the transfer
+    echo "Performing the transfer ... "
+    for tarFile in "\${tarFileNames[@]}";do
+        echo "rclone sync -P --transfers \${SLURM_CPUS_PER_TASK} --checkers \${SLURM_CPUS_PER_TASK} \${workingDir}/\${tarFile} \${fullPathInAcacia}/ &"
+        srun rclone sync -P --transfers \${SLURM_CPUS_PER_TASK} --checkers \${SLURM_CPUS_PER_TASK} "\${workingDir}/\${tarFile}" "\${fullPathInAcacia}/" &
+        wait \$!; exitcode=\$?
+        if [ \$exitcode -ne 0 ]; then
+            echo "Problems occurred during the transfer of file \${tarFile}"
+            echo "Check that the file exists in \${workingDir}"
+            echo "And that nothing is wrong with the fullPathInAcacia: \${fullPathInAcacia}/"
+            echo "Exiting the script with non-zero code in order to inform job dependencies not to continue."
+            exit 1
+        else
+            echo "Final place in Acacia: \${fullPathInAcacia}/\${tarFile}"
+        fi
+    done
+
+    echo "Done"
+    exit 0
+    """
+}
+
+// Beamform and fold on catalogued pulsar in VDIF/singlepixel mode
+workflow spsr {
     take:
         // Channel of individual pulsar Jnames
         psrs
     main:
         // Beamform and fold each pulsar
         if ( params.nosearch_pdmp ) {
-            get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr
+            get_pointings(psrs)
+                | vcsbeam
+                | get_ephemeris
+                | dspsr
         } else {
-            get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr | pdmp
+            get_pointings(psrs)
+                | vcsbeam
+                | get_ephemeris
+                | dspsr
+                | pdmp
         }
 }
 
-// Skip the beamforming stage and just run dspsr
+// Beamform on pointing in VDIF/singlepixel mode
+workflow spt {
+    take:
+        // Channel of individual pointings
+        pointings
+    main:
+        if ( params.acacia_prefix_base ) {
+            // Beamform on each pointing and copy to Acacia
+            parse_pointings(pointings)
+                | vcsbeam
+                | create_tarball
+                | copy_to_acacia
+        } else {
+            // Beamform on each pointing
+            parse_pointings(pointings)
+                | vcsbeam
+        }
+}
+
+// Fold on catalogued pulsar with dspsr and search with pdmp
 workflow dspsr_wf {
     take:
         // Channel of individual pulsar Jnames
         psrs
     main:
         if ( params.nosearch_pdmp ) {
-            locate_vdif_files(psrs) | get_ephemeris | dspsr
+            locate_vdif_files(psrs)
+                | get_ephemeris
+                | dspsr
         } else {
-            locate_vdif_files(psrs) | get_ephemeris | dspsr | pdmp
+            locate_vdif_files(psrs)
+                | get_ephemeris
+                | dspsr
+                | pdmp
         }
 }
 
-// Skip the beamforming stage and just run prepfold
+// Fold on catalogued pulsar with prepfold
 workflow prepfold_wf {
     take:
         // Channel of individual pulsar Jnames
         psrs
     main:
-        locate_fits_files(psrs) | get_ephemeris | prepfold
+        locate_fits_files(psrs)
+            | get_ephemeris
+            | prepfold
 }

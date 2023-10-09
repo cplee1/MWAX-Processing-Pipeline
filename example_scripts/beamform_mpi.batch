@@ -25,15 +25,21 @@ calsol=$3       # path to calibration solution from hyperdrive (should be a .bin
 calmetafits=$4  # path to the calibrator observation metafits
 startgps=$5     # the starting GPS second of the observation
 duration=$6     # how many seconds to process
+lowchan=$7      # lowest coarse channel
+
+if [[ $# -ne 7 ]]; then
+    echo "Invalid number of arguments given."
+    exit 1
+fi
 
 srun -N 24 -n 24 make_mwa_tied_array_beam \
     -m ${metafits} \
     -b ${startgps} \
     -T ${duration} \
-    -f 109 \
+    -f ${lowchan} \
     -d ${datadir} \
-    -P $(pwd)/pointings.txt \
-    -F $(pwd)/flagged_tiles.txt \
+    -P ${PWD}/pointings.txt \
+    -F ${PWD}/flagged_tiles.txt \
     -c ${calmetafits} \
     -C ${calsol} \
     -p -R NONE -U 0,0 -O -X --smart

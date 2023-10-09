@@ -1,23 +1,21 @@
 #!/bin/bash -l
 
 #SBATCH --account=mwavcs
-#SBATCH --job-name=vcs-calibrate
+#SBATCH --job-name=hyperdrive
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=40
 #SBATCH --partition=gpuq
 #SBATCH --gres=tmp:50g,gpu:1
-#SBATCH --time=01:00:00
+#SBATCH --time=00:10:00
 #SBATCH --export=NONE
- 
+
 module use /pawsey/mwa/software/python3/modulefiles
 module load hyperdrive
-module load birli
 module load srclists
 module list
 hyperdrive -V
-birli -V
 
 # Get the ObsID from the metafits filename
 mfits=$(basename -- "$(ls ../*.metafits)")
@@ -36,35 +34,18 @@ srclist_target=
 srclist_base=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
 
 if [[ -z $srclist_target ]]; then
-    # Create a list of 1000 sources from a catalogue
+    # Create a list of 1000 sources from the standard puma catalogue
     srclist=srclist_1000.yaml
-    # Standard puma
     catalogue_srclist=${SRCLISTS_DIR}/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
-    # GLEAM-X
-    #catalogue_srclist=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
 
     hyperdrive srclist-by-beam \
-        -n 1000 \
-        -m ../*.metafits \
+        --metafits ../*.metafits \
+        --number 1000 \
         $catalogue_srclist \
         $srclist
 else
     # Use a specific source list
     srclist=${srclist_base}/${srclist_target}
-fi
-
-fres=40  # desired freq. resolution in kHz for cal. UVFITS
-tres=2   # desired time resolution in seconds for cal. UVFITS
-
-# Make the downsampled uvfits data if it's not already there
-if [[ ! -r ../${obsid}_birli.uvfits ]]; then
-    birli \
-        -m ../*.metafits \
-        -u /nvmetmp/${obsid}_birli.uvfits \
-        --avg-time-res ${tres} \
-        --avg-freq-res ${fres} \
-        ../*ch???*.fits
-    cp /nvmetmp/${obsid}_birli.uvfits ../${obsid}_birli.uvfits
 fi
 
 # Perform DI calibration

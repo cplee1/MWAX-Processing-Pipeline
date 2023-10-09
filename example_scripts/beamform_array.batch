@@ -12,7 +12,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=01:00:00
 #SBATCH --export=NONE
-#SBATCH --array=109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132
+#SBATCH --array=109-132
  
 module use /pawsey/mwa/software/python3/modulefiles
 module load vcsbeam
@@ -27,14 +27,19 @@ calmetafits=$4  # path to the calibrator observation metafits
 startgps=$5     # the starting GPS second of the observation
 duration=$6     # how many seconds to process
 
+if [[ $# -ne 6 ]]; then
+    echo "Invalid number of arguments given."
+    exit 1
+fi
+
 srun -N 1 -n 1 make_mwa_tied_array_beam \
     -m ${metafits} \
     -b ${startgps} \
     -T ${duration} \
     -f ${SLURM_ARRAY_TASK_ID} \
     -d ${datadir} \
-    -P $(pwd)/pointings.txt \
-    -F $(pwd)/flagged_tiles.txt \
+    -P ${PWD}/pointings.txt \
+    -F ${PWD}/flagged_tiles.txt \
     -c ${calmetafits} \
     -C ${calsol} \
     -v -R NONE -U 0,0 -O -X --smart
