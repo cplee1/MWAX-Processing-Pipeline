@@ -181,11 +181,11 @@ process vcsbeam {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    maxForks 5
+    maxForks 1
 
     time { 4.hour * task.attempt }
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
 
     input:
@@ -236,7 +236,7 @@ process vcsbeam {
             echo "Error: Cannot find pointing for pulsar \${pulsars[i]}."
             exit 1
         fi
-        find . -type f -name \$pointing_glob -exec cp -t "${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s" '{}' \\;
+        find . -type f -name "\$pointing_glob" -exec cp -t "${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s" '{}' \\;
     done
     """
 }
@@ -300,7 +300,7 @@ process prepfold {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time 1.hour
+    time 3.hour
 
     errorStrategy { task.attempt == 1 ? 'retry' : 'ignore' }
     maxRetries 1

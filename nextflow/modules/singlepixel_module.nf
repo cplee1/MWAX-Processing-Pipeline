@@ -196,9 +196,9 @@ process vcsbeam {
 
     maxForks 5
 
-    time { 1.hour * task.attempt }
+    time { 2.hour * task.attempt }
 
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
 
     publishDir "${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s", mode: 'move', enabled: publish_vdif
@@ -293,7 +293,7 @@ process dspsr {
     
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time { 1.hour * task.attempt }
+    time { 2.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 2
@@ -376,7 +376,7 @@ process dspsr {
     mv *.ar *.png \${dataproduct_dir}/dspsr
 
     # If there are beamformed files already, we are re-folding, so skip this step
-    old_files=\$(find \$dataproduct_dir -type f)
+    old_files=\$(find \$dataproduct_dir -type f -name "*.vdif")
     if [[ -z \$old_files ]]; then
         # Copy VDIF/HDR files into the publish directory and delete from the work directory
         cat vdiffiles.txt | xargs -n1 cp -L -t \$dataproduct_dir
@@ -394,7 +394,7 @@ process prepfold {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time 1.hour
+    time 2.hour
 
     errorStrategy { task.attempt == 1 ? 'retry' : 'ignore' }
     maxRetries 1
@@ -465,7 +465,7 @@ process prepfold {
     mv *pfd* \${dataproduct_dir}/prepfold
 
     # If there are beamformed files already, we are re-folding, so skip this step
-    old_files=\$(find \$dataproduct_dir -type f)
+    old_files=\$(find \$dataproduct_dir -type f -name "*.fits")
     if [[ -z \$old_files ]]; then
         # Copy FITS files into the publish directory and delete from the work directory
         cat fitsfiles.txt | xargs -n1 cp -L -t \$dataproduct_dir
