@@ -265,39 +265,44 @@ process move_data {
 workflow mv {
     main:
         if ( params.obsid ) {
-            Channel
-                .from( params.asvo_id_obs )
-                .map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vcs' ] }
-                .set { vcs_job }
-
-            check_asvo_job_files(vcs_job) | check_obsid | move_data | set { obsid }
+            Channel.from( params.asvo_id_obs )
+                | map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vcs' ] }
+                | check_asvo_job_files
+                | check_obsid
+                | move_data
+                | set { obsid }
         }
 
         if ( params.calids ) {
-            Channel
-                .from( params.asvo_id_cals.split(' ') )
-                .map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vis' ] }
-                .set { cal_jobs }
-
-            check_asvo_job_files(cal_jobs) | check_obsid | move_data | set { obsid }
+            Channel.from( params.asvo_id_cals.split(' ') )
+                | map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vis' ] }
+                | check_asvo_job_files
+                | check_obsid
+                | move_data
+                | set { obsid }
         }
     emit:
-        obsid = obsid
+        obsid
 }
 
 workflow dl {
     main:
         if ( params.obsid ) {
-            asvo_vcs_download(params.obsid) | check_asvo_job_files | check_obsid | move_data | set { obsid }
+            asvo_vcs_download(params.obsid)
+                | check_asvo_job_files
+                | check_obsid
+                | move_data
+                | set { obsid }
         }
 
         if ( params.calids ) {
-            Channel
-                .from( params.calids.split(' ') )
-                .set { calids_in }
-
-            asvo_vis_download(calids_in) | check_asvo_job_files | check_obsid | move_data | set { obsid }
+            Channel.from( params.calids.split(' ') )
+                | asvo_vis_download
+                | check_asvo_job_files
+                | check_obsid
+                | move_data
+                | set { obsid }
         }
     emit:
-        obsid = obsid
+        obsid
 }

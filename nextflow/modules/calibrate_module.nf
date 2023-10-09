@@ -185,10 +185,9 @@ workflow cal {
     take:
         obsid
     main:
-        Channel
-            .from( params.calibrators.split(' ') )
-            .map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
-            .set { cal_info }
+        Channel.from( params.calibrators.split(' ') )
+            | map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
+            | set { cal_info }
 
         if ( params.skip_birli ) {
             check_cal_directory(cal_info)

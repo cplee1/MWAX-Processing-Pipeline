@@ -241,6 +241,16 @@ process get_ephemeris {
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
+    errorStrategy {
+        log.info("task ${task.hash} failed with code ${task.exitStatus}")
+        if ( task.exitStatus == 2 ) {
+            log.info('Pulsar name string is blank.')
+        } else if ( task.exitStatus == 3 ) {
+            log.info("Pulsar ${psr} not found in catalogue.")
+        }
+        return 'ignore'
+    }
+
     input:
     tuple val(psr), val(vcsbeam_files)
 
@@ -251,7 +261,7 @@ process get_ephemeris {
     """
     if [[ -z ${psr} ]]; then
         echo "Error: Pulsar name string is blank."
-        exit 1
+        exit 2
     fi
 
     par_file=${psr}.par
@@ -266,7 +276,7 @@ process get_ephemeris {
         psrcat -e ${psr} > \$par_file
         if [[ ! -z \$(grep WARNING \$par_file) ]]; then
             echo "Error: Pulsar not in catalogue."
-            exit 1
+            exit 3
         fi
     fi
 
@@ -672,9 +682,16 @@ workflow spsr {
     main:
         // Beamform and fold each pulsar
         if ( params.nosearch_pdmp ) {
-            get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr
+            get_pointings(psrs)
+                | vcsbeam
+                | get_ephemeris
+                | dspsr
         } else {
-            get_pointings(psrs) | vcsbeam | get_ephemeris | dspsr | pdmp
+            get_pointings(psrs)
+                | vcsbeam
+                | get_ephemeris
+                | dspsr
+                | pdmp
         }
 }
 
@@ -686,10 +703,14 @@ workflow spt {
     main:
         if ( params.acacia_prefix_base ) {
             // Beamform on each pointing and copy to Acacia
-            parse_pointings(pointings) | vcsbeam | create_tarball | copy_to_acacia
+            parse_pointings(pointings)
+                | vcsbeam
+                | create_tarball
+                | copy_to_acacia
         } else {
             // Beamform on each pointing
-            parse_pointings(pointings) | vcsbeam
+            parse_pointings(pointings)
+                | vcsbeam
         }
 }
 
@@ -700,9 +721,14 @@ workflow dspsr_wf {
         psrs
     main:
         if ( params.nosearch_pdmp ) {
-            locate_vdif_files(psrs) | get_ephemeris | dspsr
+            locate_vdif_files(psrs)
+                | get_ephemeris
+                | dspsr
         } else {
-            locate_vdif_files(psrs) | get_ephemeris | dspsr | pdmp
+            locate_vdif_files(psrs)
+                | get_ephemeris
+                | dspsr
+                | pdmp
         }
 }
 
@@ -712,5 +738,7 @@ workflow prepfold_wf {
         // Channel of individual pulsar Jnames
         psrs
     main:
-        locate_fits_files(psrs) | get_ephemeris | prepfold
+        locate_fits_files(psrs)
+            | get_ephemeris
+            | prepfold
 }

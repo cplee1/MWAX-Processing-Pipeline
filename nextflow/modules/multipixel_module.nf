@@ -7,8 +7,8 @@
     pulsars using the multipixel beamformer (one big job). The beamformed data
     are then separated and the folding is done independently for each pulsar.
     
-    Since the multipixel beamformer is only compatible with detected output,
-    this workflow assumes PSRFITS output.
+    Since the multipixel beamformer is only compatible with PSRFITS output,
+    this workflow assumes PSRFITS.
 */
 
 process parse_pointings {
@@ -192,9 +192,7 @@ process vcsbeam {
     tuple val(psrs), val(pointings), val(pairs), val(flagged_tiles)
 
     output:
-    val(psrs), emit: psrs
-    val(pairs), emit: pairs
-    path('*.fits'), emit: paths
+    val(psrs)
 
     script:
     """
@@ -236,149 +234,12 @@ process vcsbeam {
             echo "Error: Cannot find pointing for pulsar \${pulsars[i]}."
             exit 1
         fi
-        find . -type f -name "\$pointing_glob" -exec cp -t "${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s" '{}' \\;
+        find . -type f -name "\$pointing_glob" -exec mv -t "${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s" '{}' \\;
     done
     """
 }
 
-process get_ephemeris {
-    label 'psranalysis'
-
-    shell '/bin/bash', '-veuo', 'pipefail'
-
-    input:
-    val(psr)
-    val(pairs)
-    val(vcsbeam_files)
-
-    output:
-    tuple val(psr), val(pairs), val(vcsbeam_files), path("${psr}.par")
-
-    script:
-    """
-    if [[ -z ${psr} ]]; then
-        echo "Error: Pulsar name string is blank."
-        exit 1
-    fi
-
-    par_file=${psr}.par
-
-    if [[ -r ${params.ephemeris_dir}/\$par_file ]]; then
-        # Preference is to use MeerTime ephemeris
-        cp ${params.ephemeris_dir}/\$par_file \$par_file
-    else
-        # Otherwise, use ATNF catalogue
-        echo "MeerKAT ephemeris not found. Using PSRCAT."
-        psrcat -v
-        psrcat -e ${psr} > \$par_file
-        if [[ ! -z \$(grep WARNING \$par_file) ]]; then
-            echo "Error: Pulsar not in catalogue."
-            exit 1
-        fi
-    fi
-
-    # TCB time standard causes problems in tempo/prepfold
-    time_standard=\$(cat \$par_file | grep UNITS | awk '{print \$2}')
-    if [[ \$time_standard == 'TCB' ]]; then
-        par_file_tcb=${psr}_TCB.par
-        mv \$par_file \$par_file_tcb
-        tempo2 -gr transform \$par_file_tcb \$par_file back
-    fi
-    
-    # Replace TAI with BIPM
-    sed -i "s/TT(TAI)/TT(BIPM)/" \$par_file
-    
-    # Replace BIPMyyyy with BIPM
-    sed -i 's/TT(BIPM[0-9]\\{4\\})/TT(BIPM)/g' \$par_file
-    """
-}
-
-process prepfold {
-    label 'cpu'
-    label 'psrsearch'
-    label 'prepfold'
-
-    shell '/bin/bash', '-veuo', 'pipefail'
-
-    time 3.hour
-
-    errorStrategy { task.attempt == 1 ? 'retry' : 'ignore' }
-    maxRetries 1
-
-    input:
-    tuple val(psr), val(pairs), path(vcsbeam_files), path(par_file)
-
-    script:
-    """
-    # Locate fits files
-    find -L . -type f -name "\$(grep ${psr} ${pairs} | awk '{print \$2}').fits" | xargs -n1 basename | sort > fitsfiles.txt
-
-    if [[ -z \$(cat fitsfiles.txt) ]]; then
-        echo "Error: No fits files found."
-        exit 1
-    fi
-
-    bin_flag=""
-    if [[ ! -z \$(grep BINARY ${par_file}) ]]; then
-        bin_flag="-bin"
-    fi
-
-    nosearch_flag=""
-    if [[ "${params.nosearch_prepfold}" == "true" ]]; then
-        nosearch_flag="-nosearch"
-    fi
-
-    par_input=""
-    if [[ ${task.attempt} == 1 ]]; then
-        # On first attempt, try the par file
-        if [[ \$(cat ${par_file} | grep BINARY | awk '{print \$2}') == 'T2' ]]; then
-            echo "Binary model T2 not accepted by TEMPO."
-            # Default to PRESTO ephemeris
-            par_input="-psr ${psr}"
-        else
-            par_input="-par ${par_file}"
-        fi
-    else
-        # Otherwise, try the inbuilt ephermeris in PRESTO
-        par_input="-psr ${psr}"
-    fi
-
-    spin_freq=\$(grep F0 ${par_file} | awk '{print \$2}')
-    spin_period_ms=\$(echo "scale=5; 1000 / \$spin_freq" | bc)
-    if [[ -z \$spin_period_ms ]]; then
-        echo "Error: Cannot locate spin period."
-        exit 1
-    elif (( \$(echo "\$spin_period_ms < ${params.nbin}/10" | bc -l) )); then
-        # Set nbins to 10x the period in ms, and always round down
-        nbin=\$(printf "%.0f" \$(echo "scale=0; 10 * \$spin_period_ms - 0.5" | bc))
-    else
-        nbin=${params.nbin}
-    fi
-
-    prepfold \
-        -ncpus ${task.cpus} \
-        \$par_input \
-        -noxwin \
-        -noclip \
-        -n \$nbin \
-        -nsub ${params.nsub} \
-        -npart ${params.npart} \
-        \$bin_flag \
-        \$(cat fitsfiles.txt)
-
-    dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/psrfits_${params.duration}s
-    if [[ ! -d \${dataproduct_dir}/prepfold ]]; then
-        mkdir -p -m 771 \${dataproduct_dir}/prepfold
-    fi
-
-    # Move prepfold files to publish directory
-    mv *pfd* \${dataproduct_dir}/prepfold
-    
-    # Copy FITS files into the publish directory and delete from the work directory
-    cat fitsfiles.txt | xargs -n1 cp -L -t \$dataproduct_dir
-    cat fitsfiles.txt | xargs -n1 readlink -f | xargs -n1 rm
-    """
-}
+include { locate_fits_files; get_ephemeris; prepfold } from './singlepixel_module'
 
 // Beamform and fold on catalogued pulsar in PSRFITS/multipixel mode
 workflow mpsr {
@@ -387,14 +248,12 @@ workflow mpsr {
         psrs
     main:
         // Beamform once
-        get_pointings(psrs) | vcsbeam | set { vcsbeam_out }
-
-        vcsbeam_out.psrs
-            .flatten()
-            .set { psrs_flat }
-        
-        // Fold each pulsar
-        get_ephemeris(psrs_flat, vcsbeam_out.pairs, vcsbeam_out.paths) | prepfold
+        get_pointings(psrs)
+            | vcsbeam
+            | flatten
+            | locate_fits_files
+            | get_ephemeris
+            | prepfold
 }
 
 // Beamform on pointing in PSRFITS/multipixel mode
@@ -405,14 +264,8 @@ workflow mpt {
     main:
         // Beamform on each pointing
         parse_pointings(pointings)
-            .collect()
-            .set { pointings_files }
-        
-        combined = combine_pointings(pointings_files)
-
-        combined
-            .map { files -> [files[0].splitCsv().flatten().collect(), files[1], files[2], files[3]]}
-            .set { vcsbeam_input }
-
-        vcsbeam(vcsbeam_input)
+            | collect
+            | combine_pointings
+            | map { files -> [files[0].splitCsv().flatten().collect(), files[1], files[2], files[3]] }
+            | vcsbeam
 }
