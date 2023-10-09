@@ -12,9 +12,9 @@ process asvo_vcs_download {
 
     errorStrategy {
         if ( task.exitStatus == 75 ) {
-            wait_minutes = 30 * Math.pow(2, task.attempt)
+            wait_hours = Math.pow(2, task.attempt - 1 as int)
             log.info("Sleeping for ${wait_hours} minutes and retrying task ${task.hash}")
-            sleep(wait_minutes * 60 * 1000 as long)
+            sleep(wait_hours * 60 * 1000 as long)
             return 'retry'
         }
         log.info("task ${task.hash} failed with code ${task.exitStatus}")
@@ -70,9 +70,9 @@ process asvo_vis_download {
 
     errorStrategy {
         if ( task.exitStatus == 75 ) {
-            wait_hours = Math.pow(2, task.attempt)
-            log.info("Sleeping for ${wait_hours} hours and retrying task ${task.hash}")
-            sleep(wait_hours * 60 * 60 * 1000 as long)
+            wait_hours = Math.pow(2, task.attempt - 1 as int)
+            log.info("Sleeping for ${wait_hours} minutes and retrying task ${task.hash}")
+            sleep(wait_hours * 60 * 1000 as long)
             return 'retry'
         }
         log.info("task ${task.hash} failed with code ${task.exitStatus}")
