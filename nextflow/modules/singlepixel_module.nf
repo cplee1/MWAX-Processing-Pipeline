@@ -22,6 +22,8 @@ if ( params.psrs || params.acacia_prefix_base ) {
 process locate_vdif_files {
     shell '/bin/bash', '-veuo', 'pipefail'
 
+    tag "${psr}"
+
     input:
     val(psr)
 
@@ -51,6 +53,8 @@ process locate_vdif_files {
 
 process locate_fits_files {
     shell '/bin/bash', '-veuo', 'pipefail'
+
+    tag "${psr}"
 
     input:
     val(psr)
@@ -140,6 +144,8 @@ process parse_pointings {
 process get_pointings {
     label 'psranalysis'
 
+    tag "${psr}"
+
     shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
@@ -192,11 +198,13 @@ process vcsbeam {
     label 'gpu'
     label 'vcsbeam'
 
+    tag "${psr}"
+
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    maxForks 5
+    maxForks 3
 
-    time { 2.hour * task.attempt }
+    time { 3.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
@@ -238,6 +246,8 @@ process vcsbeam {
 
 process get_ephemeris {
     label 'psranalysis'
+
+    tag "${psr}"
 
     shell '/bin/bash', '-veuo', 'pipefail'
 
@@ -300,10 +310,12 @@ process dspsr {
     label 'cpu'
     label 'psranalysis'
     label 'dspsr'
+
+    tag "${psr}"
     
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time { 2.hour * task.attempt }
+    time { 3.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 2
@@ -402,9 +414,11 @@ process prepfold {
     label 'psrsearch'
     label 'prepfold'
 
+    tag "${psr}"
+
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time 2.hour
+    time 3.hour
 
     errorStrategy { task.attempt == 1 ? 'retry' : 'ignore' }
     maxRetries 1
@@ -487,6 +501,8 @@ process prepfold {
 process pdmp {
     label 'cpu'
     label 'psranalysis'
+
+    tag "${psr}"
     
     shell '/bin/bash', '-veuo', 'pipefail'
 
@@ -540,6 +556,8 @@ process create_tarball {
     label 'cpu'
     label 'tar'
 
+    tag "${psr}"
+
     shell '/bin/bash', '-veuo', 'pipefail'
 
     time 1.hour
@@ -569,6 +587,8 @@ process create_tarball {
 // Script courtesy of Bradley Meyers
 process copy_to_acacia {
     label 'copy'
+
+    tag "${psr}"
 
     shell '/bin/bash', '-veu'
     time 2.hour
