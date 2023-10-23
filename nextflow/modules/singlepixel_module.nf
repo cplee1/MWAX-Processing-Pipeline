@@ -204,7 +204,7 @@ process vcsbeam {
 
     maxForks 3
 
-    time { 3.hour * task.attempt }
+    time { 5.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
@@ -282,7 +282,7 @@ process get_ephemeris {
     else
         # Otherwise, use ATNF catalogue
         echo "MeerKAT ephemeris not found. Using PSRCAT."
-        psrcat -v
+        psrcat -v || true
         psrcat -e ${psr} > \$par_file
         if [[ ! -z \$(grep WARNING \$par_file) ]]; then
             echo "Error: Pulsar not in catalogue."
@@ -315,7 +315,7 @@ process dspsr {
     
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time { 3.hour * task.attempt }
+    time { 5.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 2
