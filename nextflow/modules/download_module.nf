@@ -65,7 +65,7 @@ process asvo_vis_download {
 
     shell '/bin/bash', '-veu'
 
-    time 12.hour
+    time 1.day
     maxRetries 5
 
     errorStrategy {
@@ -272,15 +272,17 @@ workflow mv {
                 | move_data
                 | set { obsid }
         }
-
         if ( params.calids ) {
-            Channel.from( params.asvo_id_cals.split(' ') )
+            Channel.from( params.asvo_id_cals )
+                | map { it.split(' ') }
+                | flatten
                 | map { jobid -> [ jobid, "${params.asvo_dir}/${jobid}", 'vis' ] }
                 | check_asvo_job_files
                 | check_obsid
                 | move_data
                 | set { obsid }
         }
+
     emit:
         obsid
 }
@@ -294,15 +296,17 @@ workflow dl {
                 | move_data
                 | set { obsid }
         }
-
         if ( params.calids ) {
-            Channel.from( params.calids.split(' ') )
+            Channel.from( params.calids )
+                | map { it.split(' ') }
+                | flatten
                 | asvo_vis_download
                 | check_asvo_job_files
                 | check_obsid
                 | move_data
                 | set { obsid }
         }
+
     emit:
         obsid
 }
