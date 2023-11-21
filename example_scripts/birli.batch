@@ -4,7 +4,7 @@
 #SBATCH --job-name=birli
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
-#SBATCH --nodes=1
+#SBATCH --ntasks=36
 #SBATCH --ntasks-per-node=36
 #SBATCH --mem=370gb
 #SBATCH --partition=workq
@@ -33,4 +33,4 @@ birli \
     ../*ch???*.fits
 
 # Copy the data from the nvme to the cal directory
-cp /nvmetmp/${obsid}_birli.uvfits ../${obsid}_birli.uvfits
+cp /nvmetmp/${obsid}_birli*.uvfits ..

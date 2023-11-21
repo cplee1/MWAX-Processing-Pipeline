@@ -1,0 +1,57 @@
+#!/bin/bash -l
+
+#SBATCH --account=mwavcs 
+#SBATCH --job-name=bf-chLOWCHAN-HIGHCHAN
+#SBATCH --output=%x-%j.out
+#SBATCH --error=%x-%j.err
+#SBATCH --ntasks=NUMCHAN
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --gpus-per-task=1
+#SBATCH --mem=32gb
+#SBATCH --partition=gpuq
+#SBATCH --gres=gpu:1
+#SBATCH --time=01:00:00
+#SBATCH --export=NONE
+ 
+module use /pawsey/mwa/software/python3/modulefiles
+module load vcsbeam
+module load openmpi-ucx-gpu/4.1.6
+module list
+make_mwa_tied_array_beam -V
+
+# obs ID of the VCS observation
+obsid=OBSID
+# obs ID of the calibrator
+calid=CALID
+# index of the lowest coarse channel
+lowchan=LOWCHAN
+# index of the highest coarse channel
+highchan=HIGHCHAN
+# the starting GPS second of the observation
+startgps=STARTGPS
+# how many seconds to process
+duration=DURATION
+# the root directory of the downloaded data (e.g. /astro/mwavcs/${USER})
+root=ROOTDIR
+
+# path to VCS metafits file
+metafits=${root}/${obsid}/${obsid}.metafits
+# path to combined (.dat) or MWAX (.sub) data directory
+datadir=${root}/${obsid}/combined
+# path to calibration solution from hyperdrive (should be a .bin file)
+calsol=${root}/${obsid}/cal/${calid}/hyperdrive/hyperdrive_solutions_ch${lowchan}-${highchan}.bin
+# path to the calibrator observation metafits
+calmetafits=${root}/${obsid}/cal/${calid}/${calid}.metafits
+
+srun make_mwa_tied_array_beam \
+    -m ${metafits} \
+    -b ${startgps} \
+    -T ${duration} \
+    -f ${lowchan} \
+    -d ${datadir} \
+    -P ${PWD}/pointings.txt \
+    -F ${PWD}/flagged_tiles.txt \
+    -c ${calmetafits} \
+    -C ${calsol} \
+    -p -R NONE -U 0,0 -O -X --smart

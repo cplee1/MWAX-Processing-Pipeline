@@ -4,10 +4,11 @@
 #SBATCH --job-name=beamform
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
-#SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=60gb
+#SBATCH --gpus-per-task=1
+#SBATCH --mem=32gb
 #SBATCH --partition=gpuq
 #SBATCH --gres=gpu:1
 #SBATCH --time=01:00:00
@@ -32,7 +33,7 @@ if [[ $# -ne 6 ]]; then
     exit 1
 fi
 
-srun -N 1 -n 1 make_mwa_tied_array_beam \
+srun make_mwa_tied_array_beam \
     -m ${metafits} \
     -b ${startgps} \
     -T ${duration} \

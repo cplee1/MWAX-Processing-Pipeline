@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 #SBATCH --account=mwavcs
-#SBATCH --job-name=vcs-calibrate
+#SBATCH --job-name=cal-LOWCHAN-HIGHCHAN
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
 #SBATCH --nodes=1
@@ -39,10 +39,8 @@ srclist_base=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
 if [[ -z $srclist_target ]]; then
     # Create a list of 1000 sources from a catalogue
     srclist=srclist_1000.yaml
-    # Standard puma
-    catalogue_srclist=${SRCLISTS_DIR}/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
     # GLEAM-X
-    #catalogue_srclist=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
+    catalogue_srclist=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
 
     hyperdrive srclist-by-beam \
         -n 1000 \
@@ -54,34 +52,21 @@ else
     srclist=${srclist_base}/${srclist_target}
 fi
 
-fres=40  # desired freq. resolution in kHz for cal. UVFITS
-tres=2   # desired time resolution in seconds for cal. UVFITS
-
-# Make the downsampled uvfits data if it's not already there
-if [[ ! -r ../${obsid}_birli.uvfits ]]; then
-    birli \
-        -m ../*.metafits \
-        -u /nvmetmp/${obsid}_birli.uvfits \
-        --avg-time-res ${tres} \
-        --avg-freq-res ${fres} \
-        ../*ch???*.fits
-    cp /nvmetmp/${obsid}_birli.uvfits ../${obsid}_birli.uvfits
-fi
-
 # Perform DI calibration
 # If necessary, flag tiles with --tile-flags <Tile1> <Tile2> ... <TileN>)
 hyperdrive di-calibrate \
     --source-list $srclist \
-    --data ../${obsid}_birli.uvfits ../*.metafits \
-    --fine-chan-flags-per-coarse-chan 0 1 30 31
+    --data ../${obsid}_birli_chLOWCHAN-HIGHCHAN.uvfits ../*.metafits \
+    --fine-chan-flags-per-coarse-chan 0 1 30 31 \
+    --outputs hyperdrive_solutions_chLOWCHAN-HIGHCHAN.fits
 
 # Plot the solutions
 hyperdrive solutions-plot \
     --metafits ../*.metafits \
-    hyperdrive_solutions.fits
+    hyperdrive_solutions_chLOWCHAN-HIGHCHAN.fits
 
 # Convert to Offringa format for VCSBeam
 hyperdrive solutions-convert \
     --metafits ../*.metafits \
-    hyperdrive_solutions.fits \
-    hyperdrive_solutions.bin
+    hyperdrive_solutions_chLOWCHAN-HIGHCHAN.fits \
+    hyperdrive_solutions_chLOWCHAN-HIGHCHAN.bin
