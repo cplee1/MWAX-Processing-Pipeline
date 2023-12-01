@@ -4,7 +4,7 @@
 #SBATCH --job-name=beamform
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
-#SBATCH --ntasks=1
+#SBATCH --ntasks=24
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gpus-per-task=1
@@ -13,7 +13,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=01:00:00
 #SBATCH --export=NONE
-#SBATCH --array=109-132
  
 module use /pawsey/mwa/software/python3/modulefiles
 module load vcsbeam
@@ -23,28 +22,37 @@ make_mwa_tied_array_beam -V
 #===============================================================================
 # Required inputs
 #-------------------------------------------------------------------------------
-# path to VCS metafits file
-metafits=
-# path to combined (.dat) or MWAX (.sub) data directory
-datadir=
-# path to calibration solution from hyperdrive (should be a .bin file)
-calsol=
-# path to the calibrator observation metafits
-calmetafits=
+# obs ID of the VCS observation
+obsid=
+# obs ID of the calibration observation
+calid=
+# index of the lowest coarse channel
+lowchan=
 # the starting GPS second of the observation
 startgps=
 # how many seconds to process
 duration=
+# the root directory of the downloaded data (e.g. /astro/mwavcs/${USER})
+root=
 #===============================================================================
+
+# path to VCS metafits file
+metafits=${root}/${obsid}/${obsid}.metafits
+# path to combined (.dat) or MWAX (.sub) data directory
+datadir=${root}/${obsid}/combined
+# path to calibration solution from hyperdrive (should be a .bin file)
+calsol=${root}/${obsid}/cal/${calid}/hyperdrive/hyperdrive_solutions.bin
+# path to the calibrator observation metafits
+calmetafits=${root}/${obsid}/cal/${calid}/${calid}.metafits
 
 srun make_mwa_tied_array_beam \
     -m ${metafits} \
     -b ${startgps} \
     -T ${duration} \
-    -f ${SLURM_ARRAY_TASK_ID} \
+    -f ${lowchan} \
     -d ${datadir} \
     -P ${PWD}/pointings.txt \
     -F ${PWD}/flagged_tiles.txt \
     -c ${calmetafits} \
     -C ${calsol} \
-    -v -R NONE -U 0,0 -O -X --smart
+    -p -R NONE -U 0,0 -O -X --smart

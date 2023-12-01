@@ -4,7 +4,7 @@
 #SBATCH --job-name=beamform
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
-#SBATCH --ntasks=1
+#SBATCH --ntasks=24
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gpus-per-task=1
@@ -13,7 +13,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=01:00:00
 #SBATCH --export=NONE
-#SBATCH --array=109-132
  
 module use /pawsey/mwa/software/python3/modulefiles
 module load vcsbeam
@@ -35,16 +34,18 @@ calmetafits=
 startgps=
 # how many seconds to process
 duration=
+# lowest coarse channel
+lowchan=
 #===============================================================================
 
 srun make_mwa_tied_array_beam \
     -m ${metafits} \
     -b ${startgps} \
     -T ${duration} \
-    -f ${SLURM_ARRAY_TASK_ID} \
+    -f ${lowchan} \
     -d ${datadir} \
     -P ${PWD}/pointings.txt \
     -F ${PWD}/flagged_tiles.txt \
     -c ${calmetafits} \
     -C ${calsol} \
-    -v -R NONE -U 0,0 -O -X --smart
+    -p -R NONE -U 0,0 -O -X --smart

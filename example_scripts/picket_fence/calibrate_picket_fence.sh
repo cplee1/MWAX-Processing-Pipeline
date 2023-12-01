@@ -29,7 +29,6 @@ for uvfits_file in $uvfits_files; do
     cp ${script_dir}/picket_fence/calibrate_template.batch $calibrate_script
     sed -i "s/LOWCHAN/${lowchan}/g" $calibrate_script
     sed -i "s/HIGHCHAN/${highchan}/g" $calibrate_script
-    sed -i "s/FITSFILELIST/${filelist}/g" $calibrate_script
 
     echo "sbatch $calibrate_script"
     sbatch $calibrate_script
