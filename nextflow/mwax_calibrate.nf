@@ -72,14 +72,18 @@ if ( params.help ) {
     exit(0)
 }
 
-include { cal } from './modules/calibrate_module'
+include { cal; cal_jobs } from './modules/calibrate_module'
 
 workflow {
-    if ( ! params.obsid ) {
-        println "Please specify the obs ID with --obsid."
-    } else if ( ! params.calibrators ) {
-        println "Please specify the calibrator(s) with --calibrators."
+    if ( params.cal_joblist ) {
+        cal_jobs("${launchDir}/${params.cal_joblist}") | view
     } else {
-        cal(params.obsid) | view
+        if ( ! params.obsid ) {
+            println "Please specify the obs ID with --obsid."
+        } else if ( ! params.calibrators ) {
+            println "Please specify the calibrator(s) with --calibrators."
+        } else {
+            cal(params.obsid) | view
+        }
     }
 }

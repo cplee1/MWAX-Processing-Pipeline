@@ -1,23 +1,23 @@
 #!/usr/bin/env nextflow
 
-if ( params.flagged_tiles != '' )
-    tile_flag_opt = "--tile-flags ${params.flagged_tiles}"
-else
-    tile_flag_opt = ''
+// if ( params.flagged_tiles != '' )
+//     tile_flag_opt = "--tile-flags ${params.flagged_tiles}"
+// else
+//     tile_flag_opt = ''
 
-if ( params.flagged_fine_chans != '' )
-    chan_flag_opt = "--fine-chan-flags-per-coarse-chan ${params.flagged_fine_chans}"
-else
-    chan_flag_opt = ''
+// if ( params.flagged_fine_chans != '' )
+//     chan_flag_opt = "--fine-chan-flags-per-coarse-chan ${params.flagged_fine_chans}"
+// else
+//     chan_flag_opt = ''
 
 process check_cal_directory {
     shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
-    tuple val(calid), val(cal_dir), val(source)
+    tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans)
 
     output:
-    tuple val(calid), val(cal_dir), env(metafits), val(source)
+    tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans), env(metafits)
 
     script:
     """
@@ -54,10 +54,10 @@ process birli {
     maxRetries 1
 
     input:
-    tuple val(calid), val(cal_dir), val(metafits), val(source)
+    tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans), val(metafits)
 
     output:
-    tuple val(calid), val(cal_dir), val(metafits), val(source)
+    tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans), val(metafits)
 
     script:
     """
@@ -91,10 +91,10 @@ process get_source_list {
     publishDir "${cal_dir}/hyperdrive", mode: 'copy'
 
     input:
-    tuple val(calid), val(cal_dir), val(metafits), val(source)
+    tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans), val(metafits)
 
     output:
-    tuple val(calid), val(cal_dir), val(metafits), path('srclist.yaml')
+    tuple val(calid), val(cal_dir), val(flagged_tiles), val(flagged_fine_chans), val(metafits), path('srclist.yaml')
 
     script:
     """
@@ -143,12 +143,14 @@ process hyperdrive {
 
     time { 30.minute * task.attempt }
 
+    maxForks 10
+
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 1
     publishDir "${cal_dir}/hyperdrive", mode: 'copy'
 
     input:
-    tuple val(calid), val(cal_dir), val(metafits), path(srclist)
+    tuple val(calid), val(cal_dir), val(flagged_tiles), val(flagged_fine_chans), val(metafits), path(srclist)
 
     output:
     tuple val(calid), val(cal_dir), path("hyperdrive_solutions.fits"), path("hyperdrive_solutions.bin"), path("*.png")
@@ -162,12 +164,20 @@ process hyperdrive {
         exit 1
     fi
 
+    tile_flag_opt=''
+    if [[ ! -z '${flagged_tiles}' ]]; then
+        tile_flag_opt='--tile-flags ${flagged_tiles}'
+    fi
+    chan_flag_opt=''
+    if [[ ! -z '${flagged_fine_chans}' ]]; then
+        chan_flag_opt='--fine-chan-flags-per-coarse-chan ${flagged_fine_chans}'
+    fi
+
     # Perform DI calibration
     hyperdrive di-calibrate \
         --source-list ${srclist} \
         --data ${cal_dir}/${calid}_birli.uvfits ${metafits} \
-        ${tile_flag_opt} \
-        ${chan_flag_opt}
+        \$tile_flag_opt \$chan_flag_opt
 
     # Plot the amplitudes and phases of the solutions
     hyperdrive solutions-plot \
@@ -187,7 +197,7 @@ workflow cal {
         obsid
     main:
         Channel.from( params.calibrators.split(' ') )
-            | map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1] ] }
+            | map { calibrator -> [ calibrator.split(':')[0], "${params.vcs_dir}/${obsid}/cal/${calibrator.split(':')[0]}", calibrator.split(':')[1], params.flagged_tiles, params.flagged_fine_chans ] }
             | set { cal_info }
 
         if ( params.skip_birli ) {
@@ -204,6 +214,23 @@ workflow cal {
                 | map { it[1] }
                 | set { cal_dirs }
         }
+    emit:
+        cal_dirs
+}
+
+workflow cal_jobs {
+    take:
+        joblist
+    main:
+        // Job list inputs:
+        // cal_dir,calid,source,flagged_tiles,flagged_fine_chans
+        Channel.fromPath( joblist )
+            | splitCsv
+            | check_cal_directory
+            | get_source_list
+            | hyperdrive
+            | map { it[1] }
+            | set { cal_dirs }
     emit:
         cal_dirs
 }

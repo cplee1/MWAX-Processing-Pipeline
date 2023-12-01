@@ -183,7 +183,7 @@ process vcsbeam {
 
     maxForks 1
 
-    time { 8.hour * task.attempt }
+    time { 4.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1

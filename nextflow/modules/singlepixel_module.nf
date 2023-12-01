@@ -204,7 +204,7 @@ process vcsbeam {
 
     maxForks 3
 
-    time { 5.hour * task.attempt }
+    time { 4.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
@@ -268,42 +268,73 @@ process get_ephemeris {
     tuple val(psr), val(vcsbeam_files), path("${psr}.par")
 
     script:
-    """
-    if [[ -z ${psr} ]]; then
-        echo "Error: Pulsar name string is blank."
-        exit 2
-    fi
+    if ( params.force_psrcat ) {
+        """
+        if [[ -z ${psr} ]]; then
+            echo "Error: Pulsar name string is blank."
+            exit 2
+        fi
 
-    par_file=${psr}.par
-
-    if [[ -r ${params.ephemeris_dir}/\$par_file ]]; then
-        # Preference is to use MeerTime ephemeris
-        cp ${params.ephemeris_dir}/\$par_file \$par_file
-    else
-        # Otherwise, use ATNF catalogue
-        echo "MeerKAT ephemeris not found. Using PSRCAT."
+        par_file=${psr}.par
         psrcat -v || true
         psrcat -e ${psr} > \$par_file
         if [[ ! -z \$(grep WARNING \$par_file) ]]; then
             echo "Error: Pulsar not in catalogue."
             exit 3
         fi
-    fi
 
-    # TCB time standard causes problems in tempo/prepfold
-    time_standard=\$(cat \$par_file | grep UNITS | awk '{print \$2}')
-    if [[ \$time_standard == 'TCB' ]]; then
-        par_file_tcb=${psr}_TCB.par
-        mv \$par_file \$par_file_tcb
-        tempo2 -gr transform \$par_file_tcb \$par_file back
-    fi
-    
-    # Replace TAI with BIPM
-    sed -i "s/TT(TAI)/TT(BIPM)/" \$par_file
-    
-    # Replace BIPMyyyy with BIPM
-    sed -i 's/TT(BIPM[0-9]\\{4\\})/TT(BIPM)/g' \$par_file
-    """
+        # TCB time standard causes problems in tempo/prepfold
+        time_standard=\$(cat \$par_file | grep UNITS | awk '{print \$2}')
+        if [[ \$time_standard == 'TCB' ]]; then
+            par_file_tcb=${psr}_TCB.par
+            mv \$par_file \$par_file_tcb
+            tempo2 -gr transform \$par_file_tcb \$par_file back
+        fi
+        
+        # Replace TAI with BIPM
+        sed -i "s/TT(TAI)/TT(BIPM)/" \$par_file
+        
+        # Replace BIPMyyyy with BIPM
+        sed -i 's/TT(BIPM[0-9]\\{4\\})/TT(BIPM)/g' \$par_file
+        """
+    } else {
+        """
+        if [[ -z ${psr} ]]; then
+            echo "Error: Pulsar name string is blank."
+            exit 2
+        fi
+
+        par_file=${psr}.par
+
+        if [[ -r ${params.ephemeris_dir}/\$par_file ]]; then
+            # Preference is to use MeerTime ephemeris
+            cp ${params.ephemeris_dir}/\$par_file \$par_file
+        else
+            # Otherwise, use ATNF catalogue
+            echo "MeerKAT ephemeris not found. Using PSRCAT."
+            psrcat -v || true
+            psrcat -e ${psr} > \$par_file
+            if [[ ! -z \$(grep WARNING \$par_file) ]]; then
+                echo "Error: Pulsar not in catalogue."
+                exit 3
+            fi
+        fi
+
+        # TCB time standard causes problems in tempo/prepfold
+        time_standard=\$(cat \$par_file | grep UNITS | awk '{print \$2}')
+        if [[ \$time_standard == 'TCB' ]]; then
+            par_file_tcb=${psr}_TCB.par
+            mv \$par_file \$par_file_tcb
+            tempo2 -gr transform \$par_file_tcb \$par_file back
+        fi
+        
+        # Replace TAI with BIPM
+        sed -i "s/TT(TAI)/TT(BIPM)/" \$par_file
+        
+        # Replace BIPMyyyy with BIPM
+        sed -i 's/TT(BIPM[0-9]\\{4\\})/TT(BIPM)/g' \$par_file
+        """
+    }
 }
 
 process dspsr {
@@ -315,7 +346,7 @@ process dspsr {
     
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time { 5.hour * task.attempt }
+    time { 8.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 2
@@ -472,6 +503,8 @@ process prepfold {
         \$par_input \
         -noxwin \
         -noclip \
+        -noscales \
+        -nooffsets \
         -n \$nbin \
         -nsub ${params.nsub} \
         -npart ${params.npart} \
