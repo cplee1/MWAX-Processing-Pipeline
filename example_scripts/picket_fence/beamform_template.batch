@@ -15,8 +15,7 @@
 #SBATCH --export=NONE
  
 module use /pawsey/mwa/software/python3/modulefiles
-module load vcsbeam
-module load openmpi-ucx-gpu/4.1.6
+module load vcsbeam/v4.2-19-g2a93cdf
 module list
 make_mwa_tied_array_beam -V
 
