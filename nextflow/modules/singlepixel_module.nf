@@ -228,8 +228,7 @@ process vcsbeam {
 
     make_mwa_tied_array_beam -V
     echo "\$(date): Executing make_mwa_tied_array_beam."
-    srun -N ${params.num_chan} -n ${params.num_chan} make_mwa_tied_array_beam \
-        -n 10 \
+    srun make_mwa_tied_array_beam \
         -m ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits \
         -b ${params.begin} \
         -T ${params.duration} \
