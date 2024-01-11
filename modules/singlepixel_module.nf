@@ -192,6 +192,59 @@ process get_pointings {
     """
 }
 
+process get_calibration_solution {
+    shell '/bin/bash', '-veuo', 'pipefail'
+
+    tag "${psr}"
+
+    input:
+    tuple val(psr), val(pointings), val(flagged_tiles)
+
+    output:
+    tuple val(psr), val(pointings), val(flagged_tiles), env(calsol)
+
+    script:
+    if ( params.use_default_sol ) {
+        """
+        if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits ]]; then
+            echo "VCS observation metafits not found. Exiting."
+            exit 1
+        fi
+
+        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits ]]; then
+            echo "Calibration observation metafits not found. Exiting."
+            exit 1
+        fi
+
+        if [[ ! -e ${params.calsol_dir}/${params.obsid}/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
+            echo "Default calibration solution not found. Exiting."
+            exit 1
+        fi
+
+        calsol="${params.calsol_dir}/${params.obsid}/${params.calid}/hyperdrive/hyperdrive_solutions.bin"
+        """
+    } else {
+        """
+        if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits ]]; then
+            echo "VCS observation metafits not found. Exiting."
+            exit 1
+        fi
+
+        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits ]]; then
+            echo "Calibration observation metafits not found. Exiting."
+            exit 1
+        fi
+
+        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
+            echo "Calibration solution not found. Exiting."
+            exit 1
+        fi
+
+        calsol="${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin"
+        """
+    }
+}
+
 process vcsbeam {
     label 'gpu'
     label 'vcsbeam'
@@ -210,20 +263,13 @@ process vcsbeam {
     publishDir "${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s", mode: 'move', enabled: publish_vdif
 
     input:
-    tuple val(psr), val(pointings), val(flagged_tiles)
+    tuple val(psr), val(pointings), val(flagged_tiles), val(calibration_solution)
 
     output:
     tuple val(psr), path('*.{vdif,hdr}')
 
     script:
     """
-    if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits || \
-        ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits || \
-        ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
-        echo "Error: Cannot locate input files for VCSBeam."
-        exit 1
-    fi
-
     make_mwa_tied_array_beam -V
     echo "\$(date): Executing make_mwa_tied_array_beam."
     srun make_mwa_tied_array_beam \
@@ -235,7 +281,7 @@ process vcsbeam {
         -P ${pointings} \
         -F ${flagged_tiles} \
         -c ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \
-        -C ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin \
+        -C ${calibration_solution} \
         -R NONE -U 0,0 -O -X --smart -v
     echo "\$(date): Finished executing make_mwa_tied_array_beam."
     """
@@ -740,11 +786,13 @@ workflow spsr {
         // Beamform and fold each pulsar
         if ( params.nosearch_pdmp ) {
             get_pointings(psrs)
+                | get_calibration_solution
                 | vcsbeam
                 | get_ephemeris
                 | dspsr
         } else {
             get_pointings(psrs)
+                | get_calibration_solution
                 | vcsbeam
                 | get_ephemeris
                 | dspsr
@@ -761,12 +809,14 @@ workflow spt {
         if ( params.acacia_prefix_base ) {
             // Beamform on each pointing and copy to Acacia
             parse_pointings(pointings)
+                | get_calibration_solution
                 | vcsbeam
                 | create_tarball
                 | copy_to_acacia
         } else {
             // Beamform on each pointing
             parse_pointings(pointings)
+                | get_calibration_solution
                 | vcsbeam
         }
 }
