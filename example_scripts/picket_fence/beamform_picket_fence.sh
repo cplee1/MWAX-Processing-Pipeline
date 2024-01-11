@@ -30,9 +30,9 @@ lowchans=(  )
 # an array of channel indices indicating the highest channel of each band
 highchans=(  )
 # the root directory of the downloaded data (backslashes must be escaped for sed)
-root_dir="\/astro\/mwavcs\/${USER}\/vcs_downloads"
+root_dir="\/scratch\/mwavcs\/${USER}\/vcs_downloads"
 # location of the template scripts
-script_dir=/astro/mwavcs/cplee/github/MWAX-Processing-Pipeline/example_scripts/picket_fence
+script_dir=/scratch/mwavcs/cplee/github/MWAX-Processing-Pipeline/example_scripts/picket_fence
 #===============================================================================
 
 if [[ ${#lowchans[@]} -ne ${#highchans[@]} ]]; then
