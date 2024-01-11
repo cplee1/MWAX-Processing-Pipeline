@@ -72,8 +72,8 @@ if ( params.help ) {
     exit(0)
 }
 
-include { dl } from './modules/download_module'
-include { cal } from './modules/calibrate_module'
+include { dl } from '../modules/download_module'
+include { cal } from '../modules/calibrate_module'
 
 workflow{
     if ( ! params.obsid ) {

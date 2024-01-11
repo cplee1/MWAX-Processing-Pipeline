@@ -124,8 +124,8 @@ if ( params.help ) {
     exit(0)
 }
 
-include { spsr; spt; dspsr_wf; prepfold_wf } from './modules/singlepixel_module'
-include { mpsr; mpt } from './modules/multipixel_module'
+include { spsr; spt; dspsr_wf; prepfold_wf } from '../modules/singlepixel_module'
+include { mpsr; mpt } from '../modules/multipixel_module'
 
 workflow bf {
     if ( params.psrs ) {

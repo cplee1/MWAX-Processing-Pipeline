@@ -1,15 +1,3 @@
-#!/usr/bin/env nextflow
-
-// if ( params.flagged_tiles != '' )
-//     tile_flag_opt = "--tile-flags ${params.flagged_tiles}"
-// else
-//     tile_flag_opt = ''
-
-// if ( params.flagged_fine_chans != '' )
-//     chan_flag_opt = "--fine-chan-flags-per-coarse-chan ${params.flagged_fine_chans}"
-// else
-//     chan_flag_opt = ''
-
 process check_cal_directory {
     shell '/bin/bash', '-veuo', 'pipefail'
 

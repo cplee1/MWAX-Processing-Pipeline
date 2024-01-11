@@ -1,5 +1,3 @@
-#!/usr/bin/env nextflow
-
 process asvo_vcs_download {
     label 'giant_squid'
     

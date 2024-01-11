@@ -1,2 +1,2 @@
-.nextflow*
-nextflow/backup_logs
+.nextflow
+.nextflow.log*

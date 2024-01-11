@@ -72,7 +72,7 @@ if ( params.help ) {
     exit(0)
 }
 
-include { cal; cal_jobs } from './modules/calibrate_module'
+include { cal; cal_jobs } from '../modules/calibrate_module'
 
 workflow {
     if ( params.cal_joblist ) {

@@ -60,7 +60,7 @@ if ( params.help ) {
     exit(0)
 }
 
-include { dl; mv } from './modules/download_module'
+include { dl; mv } from '../modules/download_module'
 
 workflow {
     if ( ! params.obsid && ! params.calids ) {
