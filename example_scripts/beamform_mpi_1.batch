@@ -2,8 +2,7 @@
 
 #SBATCH --account=mwavcs 
 #SBATCH --job-name=beamform
-#SBATCH --output=%x-%j.out
-#SBATCH --error=%x-%j.err
+#SBATCH --output=%x-%j.log
 #SBATCH --ntasks=24
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
