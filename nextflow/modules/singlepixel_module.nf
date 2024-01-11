@@ -282,19 +282,21 @@ process get_ephemeris {
             exit 3
         fi
 
-        # TCB time standard causes problems in tempo/prepfold
-        time_standard=\$(cat \$par_file | grep UNITS | awk '{print \$2}')
-        if [[ \$time_standard == 'TCB' ]]; then
-            par_file_tcb=${psr}_TCB.par
-            mv \$par_file \$par_file_tcb
-            tempo2 -gr transform \$par_file_tcb \$par_file back
+        if [[ "${vcsbeam_files[0]}" == *.fits ]]; then
+            # TEMPO1 compatibility modifications
+            # ----------------------------------
+            # Convert TCB to TDB
+            time_standard=\$(cat \$par_file | grep UNITS | awk '{print \$2}')
+            if [[ \$time_standard == 'TCB' ]]; then
+                par_file_tcb=${psr}_TCB.par
+                mv \$par_file \$par_file_tcb
+                tempo2 -gr transform \$par_file_tcb \$par_file back
+            fi
+            # Replace TAI with BIPM
+            sed -i "s/TT(TAI)/TT(BIPM)/" \$par_file
+            # Replace BIPMyyyy with BIPM
+            sed -i 's/TT(BIPM[0-9]\\{4\\})/TT(BIPM)/g' \$par_file
         fi
-        
-        # Replace TAI with BIPM
-        sed -i "s/TT(TAI)/TT(BIPM)/" \$par_file
-        
-        # Replace BIPMyyyy with BIPM
-        sed -i 's/TT(BIPM[0-9]\\{4\\})/TT(BIPM)/g' \$par_file
         """
     } else {
         """
@@ -319,22 +321,25 @@ process get_ephemeris {
             fi
         fi
 
-        # TCB time standard causes problems in tempo/prepfold
-        time_standard=\$(cat \$par_file | grep UNITS | awk '{print \$2}')
-        if [[ \$time_standard == 'TCB' ]]; then
-            par_file_tcb=${psr}_TCB.par
-            mv \$par_file \$par_file_tcb
-            tempo2 -gr transform \$par_file_tcb \$par_file back
+        if [[ "${vcsbeam_files[0]}" == *.fits ]]; then
+            # TEMPO1 compatibility modifications
+            # ----------------------------------
+            # Convert TCB to TDB
+            time_standard=\$(cat \$par_file | grep UNITS | awk '{print \$2}')
+            if [[ \$time_standard == 'TCB' ]]; then
+                par_file_tcb=${psr}_TCB.par
+                mv \$par_file \$par_file_tcb
+                tempo2 -gr transform \$par_file_tcb \$par_file back
+            fi
+            # Replace TAI with BIPM
+            sed -i "s/TT(TAI)/TT(BIPM)/" \$par_file
+            # Replace BIPMyyyy with BIPM
+            sed -i 's/TT(BIPM[0-9]\\{4\\})/TT(BIPM)/g' \$par_file
         fi
-        
-        # Replace TAI with BIPM
-        sed -i "s/TT(TAI)/TT(BIPM)/" \$par_file
-        
-        # Replace BIPMyyyy with BIPM
-        sed -i 's/TT(BIPM[0-9]\\{4\\})/TT(BIPM)/g' \$par_file
         """
     }
 }
+
 
 process dspsr {
     label 'cpu'
@@ -378,11 +383,14 @@ process dspsr {
         nbin=${params.nbin}
     fi
 
-    for datafile_hdr in `awk '{ print \$1 }' headers.txt | paste -s -d ' '`; do
+    for datafile_hdr in \$(cat headers.txt); do
         if [ ! -s \$datafile_hdr ]; then
             echo "Error: Invalid hdr file \'\${datafile_hdr}\'. Skipping file."
         else
-            datafile_vdif=\${datafile_hdr%.hdr}.vdif
+            new_datafile_hdr="\${datafile_hdr%%.hdr}_updated.hdr"
+            cat \$datafile_hdr | tr -c -d '[:print:]\\n\\t' > \$new_datafile_hdr
+            printf "NPOL 2\\n" >> \$new_datafile_hdr
+            datafile_vdif=\${datafile_hdr%%.hdr}.vdif
             if [ ! -s \$datafile_vdif ]; then
                 echo "Error: Invalid vdif file \'\${datafile_vdif}\'. Skipping file."
             else
@@ -395,7 +403,7 @@ process dspsr {
                     -F ${params.fine_chan}:D \
                     -L ${params.tint} -A \
                     -O \$outfile \
-                    \$datafile_hdr
+                    \$new_datafile_hdr
             fi
         fi
     done
@@ -412,12 +420,12 @@ process dspsr {
     rm channel_archives.txt
 
     # Flag first time integration
-    paz -s 0 -m \${base_name}.ar
+    # paz -s 0 -m \${base_name}.ar
 
     # Plotting
-    pav -FTpC -D -g \${base_name}_pulse_profile.png/png \${base_name}.ar
-    pav -TpC -Gd -g \${base_name}_frequency_phase.png/png \${base_name}.ar
-    pav -FpC -Y -g \${base_name}_time_phase.png/png \${base_name}.ar
+    pav -FTp -C -Dd -g \${base_name}_pulse_profile.png/png \${base_name}.ar
+    pav -Tp -C -Gd -g \${base_name}_frequency_phase.png/png \${base_name}.ar
+    pav -Fp -C -Yd -g \${base_name}_time_phase.png/png \${base_name}.ar
 
     dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s
     if [[ ! -d \${dataproduct_dir}/dspsr ]]; then
@@ -425,7 +433,7 @@ process dspsr {
     fi
 
     # Move files to publish directory
-    mv *.ar *.png \${dataproduct_dir}/dspsr
+    mv *.ar *.png *_updated.hdr *.par \${dataproduct_dir}/dspsr
 
     # If there are beamformed files already, we are re-folding, so skip this step
     old_files=\$(find \$dataproduct_dir -type f -name "*.vdif")
@@ -509,7 +517,6 @@ process prepfold {
         -npart ${params.npart} \
         \$bin_flag \
         \$nosearch_flag \
-        \$nosearch_flag \
         \$(cat fitsfiles.txt)
 
     dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/psrfits_${params.duration}s
@@ -518,7 +525,7 @@ process prepfold {
     fi
 
     # Move files to publish directory
-    mv *pfd* \${dataproduct_dir}/prepfold
+    mv *pfd* *.par \${dataproduct_dir}/prepfold
 
     # If there are beamformed files already, we are re-folding, so skip this step
     old_files=\$(find \$dataproduct_dir -type f -name "*.fits")
