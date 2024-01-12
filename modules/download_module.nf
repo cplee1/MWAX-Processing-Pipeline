@@ -113,8 +113,6 @@ process asvo_vis_download {
 }
 
 process check_asvo_job_files {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     tag "${jobid}"
 
     errorStrategy {
@@ -192,8 +190,6 @@ process check_obsid {
 }
 
 process move_data {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     tag "${obsid}"
 
     input:

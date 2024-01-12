@@ -1,6 +1,4 @@
 process check_cal_directory {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     input:
     tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans)
 
@@ -34,8 +32,6 @@ process birli {
     label 'cpu'
     label 'birli'
 
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     time { 1.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
@@ -55,11 +51,11 @@ process birli {
     fi
 
     birli -V
-    birli \
-        --metafits ${metafits} \
-        --avg-time-res ${params.dt} \
-        --avg-freq-res ${params.df} \
-        --uvfits-out ${calid}_birli.uvfits \
+    birli \\
+        --metafits ${metafits} \\
+        --avg-time-res ${params.dt} \\
+        --avg-freq-res ${params.df} \\
+        --uvfits-out ${calid}_birli.uvfits \\
         ${cal_dir}/*ch???*.fits
 
     cp ${calid}_birli.uvfits ${cal_dir}/${calid}_birli.uvfits
@@ -69,8 +65,6 @@ process birli {
 process get_source_list {
     label 'cpu'
     label 'srclist'
-
-    shell '/bin/bash', '-veu'
 
     time { 5.minute * task.attempt }
 
@@ -93,10 +87,10 @@ process get_source_list {
 
     echo "Creating list of 1000 brightest sources from catalogue."
     srclist=srclist_1000.yaml
-    hyperdrive srclist-by-beam \
-        --metafits ${metafits} \
-        --number 1000 \
-        ${params.src_catalogue} \
+    hyperdrive srclist-by-beam \\
+        --metafits ${metafits} \\
+        --number 1000 \\
+        ${params.src_catalogue} \\
         \$srclist
 
     echo "Looking for specific source model."
@@ -111,10 +105,10 @@ process get_source_list {
         echo "Specific model found: ${params.models_dir}/\${specific_model}"
         echo "Converting model to yaml format."
         srclist=srclist_specific.yaml
-        hyperdrive srclist-by-beam \
-            --metafits ${metafits} \
-            --number 1 \
-            ${params.models_dir}/\$specific_model \
+        hyperdrive srclist-by-beam \\
+            --metafits ${metafits} \\
+            --number 1 \\
+            ${params.models_dir}/\$specific_model \\
             \$srclist
         echo "Using specific source model."
     fi
@@ -126,8 +120,6 @@ process get_source_list {
 process hyperdrive {
     label 'gpu'
     label 'hyperdrive'
-
-    shell '/bin/bash', '-veu'
 
     time { 30.minute * task.attempt }
 
@@ -162,20 +154,20 @@ process hyperdrive {
     fi
 
     # Perform DI calibration
-    hyperdrive di-calibrate \
-        --source-list ${srclist} \
-        --data ${cal_dir}/${calid}_birli.uvfits ${metafits} \
+    hyperdrive di-calibrate \\
+        --source-list ${srclist} \\
+        --data ${cal_dir}/${calid}_birli.uvfits ${metafits} \\
         \$tile_flag_opt \$chan_flag_opt
 
     # Plot the amplitudes and phases of the solutions
-    hyperdrive solutions-plot \
-        --metafits ${metafits} \
+    hyperdrive solutions-plot \\
+        --metafits ${metafits} \\
         hyperdrive_solutions.fits
 
     # Convert to Offringa format for VCSBeam
-    hyperdrive solutions-convert \
-        --metafits ${metafits} \
-        hyperdrive_solutions.fits \
+    hyperdrive solutions-convert \\
+        --metafits ${metafits} \\
+        hyperdrive_solutions.fits \\
         hyperdrive_solutions.bin
     """
 }

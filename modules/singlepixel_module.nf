@@ -18,8 +18,6 @@ if ( params.psrs || params.acacia_prefix_base ) {
 }
 
 process locate_vdif_files {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     tag "${psr}"
 
     input:
@@ -50,8 +48,6 @@ process locate_vdif_files {
 }
 
 process locate_fits_files {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     tag "${psr}"
 
     input:
@@ -82,8 +78,6 @@ process locate_fits_files {
 
 process check_directories {
     tag "${source}"
-
-    shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
     val(source)
@@ -120,8 +114,6 @@ process check_directories {
 }
 
 process get_calibration_solution {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     tag "${source}"
 
     input:
@@ -177,8 +169,6 @@ process get_calibration_solution {
 }
 
 process parse_pointings {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     input:
     tuple val(RAJ), val(DECJ), val(obsmeta), val(calmeta), val(calsol)
 
@@ -219,8 +209,6 @@ process get_pointings {
     label 'psranalysis'
 
     tag "${psr}"
-
-    shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
     tuple val(psr), val(obsmeta), val(calmeta), val(calsol)
@@ -275,8 +263,6 @@ process vcsbeam {
 
     tag "${psr}"
 
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     maxForks 3
 
     time { 1.hour * task.attempt }
@@ -315,8 +301,6 @@ process get_ephemeris {
     label 'psranalysis'
 
     tag "${psr}"
-
-    shell '/bin/bash', '-veuo', 'pipefail'
 
     errorStrategy {
         log.info("task ${task.hash} failed with code ${task.exitStatus}")
@@ -415,8 +399,6 @@ process dspsr {
     label 'dspsr'
 
     tag "${psr}"
-    
-    shell '/bin/bash', '-veuo', 'pipefail'
 
     time { 2.hour * task.attempt }
 
@@ -524,8 +506,6 @@ process prepfold {
 
     tag "${psr}"
 
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     time 3.hour
 
     errorStrategy { task.attempt == 1 ? 'retry' : 'ignore' }
@@ -612,8 +592,6 @@ process pdmp {
     label 'psranalysis'
 
     tag "${psr}"
-    
-    shell '/bin/bash', '-veuo', 'pipefail'
 
     time { 2.hour * task.attempt }
 
@@ -674,8 +652,6 @@ process create_tarball {
     label 'tar'
 
     tag "${psr}"
-
-    shell '/bin/bash', '-veuo', 'pipefail'
 
     time 1.hour
 

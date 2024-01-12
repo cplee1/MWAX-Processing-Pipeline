@@ -10,8 +10,6 @@
 */
 
 process parse_pointings {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     input:
     tuple val(RAJ), val(DECJ)
 
@@ -45,8 +43,6 @@ process parse_pointings {
 }
 
 process combine_pointings {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     input:
     path(pointings_files)
 
@@ -77,8 +73,8 @@ process combine_pointings {
 
         # Write the tile flags to file
         echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
-        ${params.convert_flags_script} \
-            -m ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \
+        ${params.convert_flags_script} \\
+            -m ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \\
             -i flagged_tiles_rts.txt \
             -o flagged_tiles.txt
         """
@@ -111,8 +107,6 @@ process combine_pointings {
 
 process get_pointings {
     label 'psranalysis'
-
-    shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
     val(psrs)
@@ -177,8 +171,6 @@ process vcsbeam {
     label 'gpu'
     label 'vcsbeam'
 
-    shell '/bin/bash', '-veuo', 'pipefail'
-
     maxForks 1
 
     time { 4.hour * task.attempt }
@@ -199,8 +191,8 @@ process vcsbeam {
         exit 1
     fi
 
-    if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits || \
-        ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits || \
+    if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits || \\
+        ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits || \\
         ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
         echo "Error: Cannot locate input files for VCSBeam."
         exit 1
@@ -208,16 +200,16 @@ process vcsbeam {
 
     make_mwa_tied_array_beam -V
     echo "\$(date): Executing make_mwa_tied_array_beam."
-    srun make_mwa_tied_array_beam \
-        -m ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits \
-        -b ${params.begin} \
-        -T ${params.duration} \
-        -f ${params.low_chan} \
-        -d ${params.vcs_dir}/${params.obsid}/combined \
-        -P ${pointings} \
-        -F ${flagged_tiles} \
-        -c ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \
-        -C ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin \
+    srun make_mwa_tied_array_beam \\
+        -m ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits \\
+        -b ${params.begin} \\
+        -T ${params.duration} \\
+        -f ${params.low_chan} \\
+        -d ${params.vcs_dir}/${params.obsid}/combined \\
+        -P ${pointings} \\
+        -F ${flagged_tiles} \\
+        -c ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \\
+        -C ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin \\
         -R NONE -U 0,0 -O -X --smart -p
     echo "\$(date): Finished executing make_mwa_tied_array_beam."
 
