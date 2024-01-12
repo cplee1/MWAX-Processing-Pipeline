@@ -1,3 +1,9 @@
+/*
+Calibrate Module
+~~~~~~~~~~~~~~~~~~
+This module contains processes for calibrating with Hyperdrive and Birli.
+*/
+
 process check_cal_directory {
     input:
     tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans)

@@ -1,3 +1,9 @@
+/*
+Download Module
+~~~~~~~~~~~~~~~~~~
+This module contains processes for downloading and moving data.
+*/
+
 process asvo_vcs_download {
     label 'giant_squid'
     
