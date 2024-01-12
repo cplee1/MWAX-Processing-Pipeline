@@ -31,20 +31,20 @@ process asvo_vcs_download {
     mode=vcs
 
     # Submit job and supress failure if job already exists
-    ${params.giant_squid} submit-volt -v -w \
-        --delivery astro \
-        --offset ${params.offset} \
-        --duration ${params.duration} \
-        ${obsid} \
+    ${params.giant_squid} submit-volt -v -w \\
+        --delivery astro \\
+        --offset ${params.offset} \\
+        --duration ${params.duration} \\
+        ${obsid} \\
         || true
 
-    ${params.giant_squid} list -j \
-        --types DownloadVoltage \
-        --states Ready \
-        -- ${obsid} \
-        | tee /dev/stderr \
-        | ${params.jq} -r '.[]|[.jobId,.files[0].filePath//"",.files[0].fileSize//""]|@tsv' \
-        | sort -r \
+    ${params.giant_squid} list -j \\
+        --types DownloadVoltage \\
+        --states Ready \\
+        -- ${obsid} \\
+        | tee /dev/stderr \\
+        | ${params.jq} -r '.[]|[.jobId,.files[0].filePath//"",.files[0].fileSize//""]|@tsv' \\
+        | sort -r \\
         | tee ready.tsv
 
     if read -r jobid fpath fsize < ready.tsv; then
@@ -89,18 +89,18 @@ process asvo_vis_download {
     mode=vis
 
     # Submit job and supress failure if job already exists
-    ${params.giant_squid} submit-vis -v -w \
-        --delivery astro \
-        ${obsid} \
+    ${params.giant_squid} submit-vis -v -w \\
+        --delivery astro \\
+        ${obsid} \\
         || true
 
-    ${params.giant_squid} list -j \
-        --types DownloadVisibilities \
-        --states Ready \
-        -- ${obsid} \
-        | tee /dev/stderr \
-        | ${params.jq} -r '.[]|[.jobId,.files[0].filePath//"",.files[0].fileSize//""]|@tsv' \
-        | sort -r \
+    ${params.giant_squid} list -j \\
+        --types DownloadVisibilities \\
+        --states Ready \\
+        -- ${obsid} \\
+        | tee /dev/stderr \\
+        | ${params.jq} -r '.[]|[.jobId,.files[0].filePath//"",.files[0].fileSize//""]|@tsv' \\
+        | sort -r \\
         | tee ready.tsv
 
     if read -r jobid fpath fsize < ready.tsv; then
@@ -141,8 +141,8 @@ process check_asvo_job_files {
     fi
 
     # Is there data files in the directory?
-    if [[ \$(find ${fpath} -name "*.sub"  | wc -l) -lt 1 && \
-          \$(find ${fpath} -name "*.dat"  | wc -l) -lt 1 && \
+    if [[ \$(find ${fpath} -name "*.sub"  | wc -l) -lt 1 && \\
+          \$(find ${fpath} -name "*.dat"  | wc -l) -lt 1 && \\
           \$(find ${fpath} -name "*.fits" | wc -l) -lt 1 ]]; then
         echo "Error: Cannot locate data files."
         exit 3
@@ -155,14 +155,11 @@ process check_asvo_job_files {
     fi
 
     # Get the obsid
-    if [[ -z "${params.obsid}" ]]; then
-        obsid=\$(find ${fpath} -name "*.metafits" | xargs -n1 basename -s ".metafits")
-    else
-        obsid="${params.obsid}"
-        if [[ \${#obsid} != 10 ]]; then
-            echo "Error: The provided obs ID is not valid."
-            exit 5
-        fi
+    obsid=\$(find ${fpath} -name "*.metafits" | xargs -n1 basename -s ".metafits")
+
+    if [[ \${#obsid} != 10 ]]; then
+        echo "Error: The provided obs ID is not valid."
+        exit 5
     fi
     """
 }
