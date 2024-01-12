@@ -71,10 +71,10 @@ def help_message() {
         |   --calids "1372184552 1372189472"
         |
         |   3. Move downloaded VCS files:
-        |   mwax_download.nf --skip_download --obsid 1372184672 --asvo_id_obs 661635
+        |   mwax_download.nf --skip_download --asvo_id_obs 661635
         |
         |   4. Move downloaded VCS and calibrator files:
-        |   mwax_download.nf --skip_download --obsid 1372184672 --asvo_id_obs 661635
+        |   mwax_download.nf --skip_download --asvo_id_obs 661635
         |   --asvo_id_cals "661634 661636"
         |
         |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -99,10 +99,10 @@ def examples_message() {
         |   --calids "1372184552 1372189472"
         |
         |   3. Move downloaded VCS files:
-        |   mwax_download.nf --skip_download --obsid 1372184672 --asvo_id_obs 661635
+        |   mwax_download.nf --skip_download --asvo_id_obs 661635
         |
         |   4. Move downloaded VCS and calibrator files:
-        |   mwax_download.nf --skip_download --obsid 1372184672 --asvo_id_obs 661635
+        |   mwax_download.nf --skip_download --asvo_id_obs 661635
         |   --asvo_id_cals "661634 661636"
         |
         |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
