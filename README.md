@@ -1,46 +1,63 @@
 # MWAX Processing Pipeline
-Nextflow workflows for processing VCS pulsar observations. These workflows are
-yet to be tested on legacy observations, but should in principle be compatible.
+Nextflow pipelines for processing VCS pulsar observations.
 
 ## Installation
-These scripts are setup for use on Pawsey's Garrawarla cluster, but will
+These scripts are currently setup for Pawsey's Garrawarla cluster, but will
 eventually be expanded for use on Setonix. I am working on setting up a module,
-but in the meantime you can set up the pipelines by cloning the repository
-and then adding the `nextflow` directory to you PATH, e.g.
+but in the meantime you can use the pipelines by cloning the repository
+and then adding it to you PATH, e.g.
 
-    export PATH=${PATH}:/astro/mwavcs/${USER}/github/MWAX-Processing-Pipeline/nextflow
+    export PATH=${PATH}:/scratch/mwavcs/${USER}/github/MWAX-Processing-Pipeline
+
+This pipeline uses Nextflow to schedule jobs and manage intermediate data
+products. To run the pipeline, you need to have the Nextflow binary installed
+and in the PATH. On Garrawarla, the `mwa_search` module already has Nextflow
+installed, so one way to setup the environment is:
+
+    module use /pawsey/mwa/software/python3/modulefiles
+    module load mwa_search
+
+If the repository is in your PATH, then the scripts should be executable from
+anywhere.
+
+## General tips
+All pipelines have a help menu available by setting the `--help` flag. The help
+also includes common examples, but if you only want the examples then they are
+available using the `--examples` flag.
 
 ## Downloading VCS data
-The download pipeline uses Giant Squid to submit jobs to ASVO, then waits until
+The `mwax_download.nf` pipeline has two main functions:
+
+* Download observations from the MWA ASVO
+* Move the downloaded data into a standardised directory structure
+
+Downloading is done using Giant Squid. It submits jobs to ASVO, then waits until
 the files are downloaded and moves them into the standard directory structure.
-If the files are already downloaded, then you can skip the download step and
-instead provide the job IDs. This will move the files from the ASVO directory
-into the VCS directory. Available options and an example are given in the help menu:
-    
-    mwax_download.nf --help
+If you prefer to use the ASVO Web Client, then you can skip the download step
+and instead provide the ASVO job IDs.
 
 ## Calibrating VCS data
-The calibration pipeline uses Birli to preprocess and then Hyperdrive to
-perform direction-independent amplitude/phase calibration an all tiles.
-Calibrator observations are specified as OBSID:SOURCE pairs. If the source is
-in the lookup table (source_lists.txt) then the specific source model will be
-used, otherwise the GLEAM catalogue will be used. See the help menu for
-available options and typical examples:
-
-    mwax_calibrate.nf --help
+The `mwax_calibrate.nf` pipeline generates calibration solutions from MWA
+imaging observations using Birli (to preprocess) and Hyperdrive (to calibrate).
+The solutions are stored in both Hyperdrive FITS format and the legacy Offringa
+format for compatibility with VCSBeam. Calibrator observations are specified as
+"OBSID:SOURCE" pairs, where SOURCE is either a source from `source_lists.txt` or
+any other string. The former will use a multi-component Gaussian model and the
+latter will default to using the GLEAM-X Galactic Sky Map. In general, I
+recommend trying the GLEAM-X source list first using, e.g., "OBSID:-" as the
+calibrator input.
 
 ## Beamforming and folding on pulsars
-The beamforming pipeline uses VCSBeam, which can output baseband complex 
-voltages in VDIF file format or detected timeseries in PSRFITS format. If
-PSRFITS format is selected, then the multipixel beamformer will be used. If
-VDIF format is selected, then the pulsars will be beamformed separately.
-Dedispersion and folding is done with `prepfold` for PSRFITS data, and `dspsr`
-for VDIF data. Detection optimisation is done with `prepfold` and `pdmp`.
-See the help menu for available options and typical examples:
+The `mwax_beamform.nf` pipeline performs a variety of functions:
 
-    mwax_beamform.nf --help
+* Beamforming using VCSBeam
+* Folding and parameter optimisation using `dspsr`/`pdmp` or `prepfold`
+* Uploading the final data products to Acacia
 
-## Potential future improvements
-
-* Calibrate and beamform picket fence data
-* Beamform on all pulsars in an observation
+The beamformer can output in PSRFITS format (Stokes intensities) or in VDIF
+format (complex voltages). When outputting PSRFITS, the pipeline/beamformer
+operated in "multi-pixel" mode, which submits one big beamforming job then
+post-processes the output as normal (per pular). For VDIF output, the
+pipeline/beamformer operates normally, where all pulsars are beamformed and
+processed in separate jobs. If you want both PSRFITS and VDIF dataproducts,
+the pipeline is able to run both workflows in parallel.
