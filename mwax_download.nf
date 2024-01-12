@@ -29,7 +29,7 @@ def help_message() {
         |       API key corresponding to the user's ASVO account.
         |       [default: ${params.asvo_api_key}]
         |
-        |   Calibration download options [currently disabled]:
+        |   Calibration download options:
         |   --calids <CALIDS>...
         |       Space separated list of ObsIDs of calibrator observations.
         |        Must enclose list in quotes.
@@ -66,7 +66,7 @@ def help_message() {
         |   1. VCS download only:
         |   mwax_download.nf --obsid 1372184672 --duration 600 --offset 0
         |
-        |   2. VCS and calibrator download [currently disabled]:
+        |   2. VCS and calibrator download:
         |   mwax_download.nf --obsid 1372184672 --duration 600 --offset 0
         |   --calids "1372184552 1372189472"
         |
@@ -94,7 +94,7 @@ def examples_message() {
         |   1. VCS download only:
         |   mwax_download.nf --obsid 1372184672 --duration 600 --offset 0
         |
-        |   2. VCS and calibrator download [currently disabled]:
+        |   2. VCS and calibrator download:
         |   mwax_download.nf --obsid 1372184672 --duration 600 --offset 0
         |   --calids "1372184552 1372189472"
         |
