@@ -1,23 +1,29 @@
 /*
-    Multipixel Module
-    ~~~~~~~~~~~~~~~~~~
-    This module contains processes and workflows for beamforming on multiple
-    pulsars using the multipixel beamformer (one big job). The beamformed data
-    are then separated and the folding is done independently for each pulsar.
-    
-    Since the multipixel beamformer is only compatible with PSRFITS output,
-    this workflow assumes PSRFITS.
+Multipixel Module
+~~~~~~~~~~~~~~~~~~
+This module contains processes and workflows for beamforming on multiple
+pulsars using the multipixel beamformer (one big job). The beamformed data
+are then separated and the folding is done independently for each pulsar.
+
+Since the multipixel beamformer is only compatible with PSRFITS output,
+this workflow assumes PSRFITS.
 */
 
 process parse_pointings {
+    tag 'multi-psr'
+    
     input:
-    tuple val(RAJ), val(DECJ)
+    tuple val(RAJ), val(DECJ), val(obsmeta), val(calmeta), val(calsol)
 
     output:
-    path("pointings_${task.index}.txt")
+    path("pointings_${task.index}.txt"), emit: pointing_info
+    tuple val(obsmeta), val(calmeta), val(calsol), emit: job_info
 
     script:
     """
+    # Label for naming files and directories
+    pointing_label="${RAJ}_${DECJ}"
+
     # Determine a unique glob
     IFS=':' read -r raj_hours raj_minutes raj_seconds <<< "${RAJ}"
     IFS=':' read -r decj_degrees decj_minutes decj_seconds <<< "${DECJ}"
@@ -25,43 +31,54 @@ process parse_pointings {
 
     # Write label and individual coordinates to file
     echo "${RAJ} ${DECJ} ${RAJ}_${DECJ} \$pointing_glob" | tee pointings_${task.index}.txt
+    """
+}
 
-    # Ensure that there is a directory for the beamformed data
-    psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${RAJ}_${DECJ}/psrfits_${params.duration}s"
-    if [[ ! -d \$psr_dir ]]; then
-        mkdir -p -m 771 \$psr_dir
+process get_pointings {
+    label 'psranalysis'
+
+    tag 'multi-psr'
+
+    input:
+    tuple val(psr), val(obsmeta), val(calmeta), val(calsol)
+
+    output:
+    path("pointings_${task.index}.txt"), emit: pointing_info
+    tuple val(obsmeta), val(calmeta), val(calsol), emit: job_info
+
+    script:
+    """
+    # Get equatorial coordinates
+    RAJ=\$(psrcat -e2 ${psr} | grep "RAJ " | awk '{print \$2}')
+    DECJ=\$(psrcat -e2 ${psr} | grep "DECJ " | awk '{print \$2}')
+    if [[ -z \$RAJ || -z \$DECJ ]]; then
+        echo "Error: Could not retrieve pointing from psrcat."
+        exit 1
     fi
 
-    # Move any existing beamformed data into a subdirectory
-    old_files=\$(find \$psr_dir -type f)
-    if [[ -n \$old_files ]]; then
-        archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
-        mkdir -p -m 771 \$archive
-        echo \$old_files | xargs -n1 mv -t \$archive
-    fi
+    # Determine a unique glob for each pointing
+    IFS=':' read -r raj_hours raj_minutes raj_seconds <<< "\$RAJ"
+    IFS=':' read -r decj_degrees decj_minutes decj_seconds <<< "\$DECJ"
+    pointing_glob="*\$raj_hours:\$raj_minutes:*\$decj_degrees:\$decj_minutes:*"
+    
+    # Write Jname and individual coordinates to file
+    echo "\$RAJ \$DECJ ${psr} \$pointing_glob" | tee pointings_${task.index}.txt
     """
 }
 
 process combine_pointings {
+    tag 'multi-psr'
+
     input:
-    path(pointings_files)
+    path(pointing_info_files)
+    tuple val(obsmeta), val(calmeta), val(calsol)
 
     output:
-    tuple path('labels.txt'), path('pointings.txt'), path('pointing_pairs.txt'), path('flagged_tiles.txt')
+    tuple val(obsmeta), val(calmeta), val(calsol), path('labels.txt'), path('pointings.txt'), path('pointing_pairs.txt'), path('flagged_tiles.txt')
 
     script:
     if ( params.convert_rts_flags ) {
         """
-        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
-            echo "Error: Please provide ObsID and CalID."
-            exit 1
-        fi
-
-        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-            echo "Error: Cannot find observation directory."
-            exit 1
-        fi
-
         # Combine pointings into appropriate file structures
         files=\$(find pointings*.txt)
         echo \$files | xargs -n1 cat | tee -a pointings_labels.txt
@@ -74,22 +91,12 @@ process combine_pointings {
         # Write the tile flags to file
         echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
         ${params.convert_flags_script} \\
-            -m ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \\
+            -m ${calmeta} \\
             -i flagged_tiles_rts.txt \
             -o flagged_tiles.txt
         """
     } else {
         """
-        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
-            echo "Error: Please provide ObsID and CalID."
-            exit 1
-        fi
-
-        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-            echo "Error: Cannot find observation directory."
-            exit 1
-        fi
-
         # Combine pointings into appropriate file structures
         files=\$(find pointings*.txt)
         echo \$files | xargs -n1 cat | tee -a pointings_labels.txt
@@ -105,84 +112,24 @@ process combine_pointings {
     }
 }
 
-process get_pointings {
-    label 'psranalysis'
-
-    input:
-    val(psrs)
-
-    output:
-    tuple val(psrs), path('pointings.txt'), path('pointing_pairs.txt'), path('flagged_tiles.txt')
-
-    script:
-    """
-    if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
-        echo "Error: Please provide ObsID and CalID."
-        exit 1
-    fi
-
-    if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-        echo "Error: Cannot find observation directory."
-        exit 1
-    fi
-
-    # Turn the Nextflow list into a Bash array
-    eval "pulsars=(\$(echo ${psrs} | sed 's/\\[//;s/\\]//;s/,/ /g'))"
-
-    for (( i=0; i<\${#pulsars[@]}; i++ )); do
-        # Get equatorial coordinates from the catalogue
-        RAJ=\$(psrcat -e2 "\${pulsars[i]}" | grep "RAJ " | awk '{print \$2}')
-        DECJ=\$(psrcat -e2 "\${pulsars[i]}" | grep "DECJ " | awk '{print \$2}')
-        if [[ -z \$RAJ || -z \$DECJ ]]; then
-            echo "Error: Could not retrieve pointing from psrcat."
-            exit 1
-        fi
-        # Write equatorial coordinates to file
-        echo "\${RAJ} \${DECJ}" | tee -a pointings.txt
-
-        # Determine a unique glob for each pointing
-        IFS=':' read -r raj_hours raj_minutes raj_seconds <<< "\$RAJ"
-        IFS=':' read -r decj_degrees decj_minutes decj_seconds <<< "\$DECJ"
-        pointing_glob="*\$raj_hours:\$raj_minutes:*\$decj_degrees:\$decj_minutes:*"
-        # Write globs to file
-        echo "\${pulsars[i]} \${pointing_glob}" | tee -a pointing_pairs.txt
-
-        # Ensure that there is a directory for the beamformed data
-        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s"
-        if [[ ! -d \$psr_dir ]]; then
-            mkdir -p -m 771 \$psr_dir
-        fi
-
-        # Move any existing beamformed data into a subdirectory
-        old_files=\$(find \$psr_dir -type f)
-        if [[ -n \$old_files ]]; then
-            archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
-            mkdir -p -m 771 \$archive
-            echo \$old_files | xargs -n1 mv -t \$archive
-        fi
-    done
-
-    # Write the tile flags to file
-    echo "${params.flagged_tiles}" | tee flagged_tiles.txt
-    """
-}
-
 process vcsbeam {
     label 'gpu'
     label 'vcsbeam'
 
+    tag 'multi-psr'
+
     maxForks 1
 
-    time { 4.hour * task.attempt }
+    time { 1.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
 
     input:
-    tuple val(psrs), val(pointings), val(pairs), val(flagged_tiles)
+    tuple val(sources), val(obsmeta), val(calmeta), val(calsol), val(pointings), val(pairs), val(flagged_tiles)
 
     output:
-    val(psrs)
+    val(sources)
 
     script:
     """
@@ -191,30 +138,23 @@ process vcsbeam {
         exit 1
     fi
 
-    if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits || \\
-        ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits || \\
-        ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
-        echo "Error: Cannot locate input files for VCSBeam."
-        exit 1
-    fi
-
     make_mwa_tied_array_beam -V
     echo "\$(date): Executing make_mwa_tied_array_beam."
     srun make_mwa_tied_array_beam \\
-        -m ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits \\
+        -m ${obsmeta} \\
         -b ${params.begin} \\
         -T ${params.duration} \\
         -f ${params.low_chan} \\
         -d ${params.vcs_dir}/${params.obsid}/combined \\
         -P ${pointings} \\
         -F ${flagged_tiles} \\
-        -c ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \\
-        -C ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin \\
+        -c ${calmeta} \\
+        -C ${calsol} \\
         -R NONE -U 0,0 -O -X --smart -p
     echo "\$(date): Finished executing make_mwa_tied_array_beam."
 
     # Turn the Nextflow list into a Bash array
-    eval "pulsars=(\$(echo ${psrs} | sed 's/\\[//;s/\\]//;s/,/ /g'))"
+    eval "pulsars=(\$(echo ${sources} | sed 's/\\[//;s/\\]//;s/,/ /g'))"
 
     # Organise files by pointing using the specified globs
     for (( i=0; i<\${#pulsars[@]}; i++ )); do
@@ -228,16 +168,23 @@ process vcsbeam {
     """
 }
 
-include { locate_fits_files; get_ephemeris; prepfold } from './singlepixel_module'
+include { check_directories          } from './singlepixel_module'
+include { get_calibration_solution   } from './singlepixel_module'
+include { locate_fits_files          } from './singlepixel_module'
+include { get_ephemeris              } from './singlepixel_module'
+include { prepfold                   } from './singlepixel_module'
 
 // Beamform and fold on catalogued pulsar in PSRFITS/multipixel mode
 workflow mpsr {
     take:
-        // Channel where each item is a list of pulsar J names
-        psrs
+        // Channel of [source, obsmeta, calmeta, calsol]
+        job_info
     main:
         // Beamform once
-        get_pointings(psrs)
+        get_pointings(job_info)
+
+        combine_pointings(get_pointings.out.pointing_info.collect(), get_pointings.out.job_info.first())
+            | map { [ it[3].splitCsv().flatten().collect(), it[0], it[1], it[2], it[4], it[5], it[6] ] }
             | vcsbeam
             | flatten
             | locate_fits_files
@@ -248,13 +195,13 @@ workflow mpsr {
 // Beamform on pointing in PSRFITS/multipixel mode
 workflow mpt {
     take:
-        // Channel where each item is a list of pointings
-        pointings
+        // Channel of [source, obsmeta, calmeta, calsol]
+        job_info
     main:
         // Beamform on each pointing
-        parse_pointings(pointings)
-            | collect
-            | combine_pointings
-            | map { files -> [files[0].splitCsv().flatten().collect(), files[1], files[2], files[3]] }
+        parse_pointings(job_info)
+
+        combine_pointings(parse_pointings.out.pointing_info.collect(), parse_pointings.out.job_info.first())
+            | map { [ it[3].splitCsv().flatten().collect(), it[0], it[1], it[2], it[4], it[5], it[6] ] }
             | vcsbeam
 }

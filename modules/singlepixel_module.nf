@@ -1,14 +1,14 @@
 /*
-    Singlepixel Module
-    ~~~~~~~~~~~~~~~~~~
-    This module contains processes and workflows for beamforming and folding on 
-    multiple pulsars independently of one another. Each pulsar is assigned its
-    own beamforming job which is then fed into a folding job.
+Singlepixel Module
+~~~~~~~~~~~~~~~~~~
+This module contains processes and workflows for beamforming and folding on 
+multiple pulsars independently of one another. Each pulsar is assigned its
+own beamforming job which is then fed into a folding job.
 
-    Since we use the multipixel beamformer for PSRFITS output, the singlepixel
-    beamforming workflow assumes VDIF output. The locate_fits_files and prepfold
-    processes are included here for if the use wants to re-fold their PSRFITS
-    data, which does not involve the multipixel beamformer.
+Since we use the multipixel beamformer for PSRFITS output, the singlepixel
+beamforming workflow assumes VDIF output. The locate_fits_files and prepfold
+processes are included here for if the use wants to re-fold their PSRFITS
+data, which does not involve the multipixel beamformer.
 */
 
 if ( params.psrs || params.acacia_prefix_base ) {
@@ -86,35 +86,84 @@ process check_directories {
     val(source)
 
     script:
-    """
-    if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
-        echo "Error: Please provide ObsID and CalID."
-        exit 1
-    fi
+    if ( params.fits && params.vdif ) {
+        """
+        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+            echo "Error: Cannot find observation directory."
+            exit 1
+        fi
 
-    if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-        echo "Error: Cannot find observation directory."
-        exit 1
-    fi
+        # Ensure that there is a directory for the beamformed data
+        psr_dir1="${params.vcs_dir}/${params.obsid}/pointings/${source}/psrfits_${params.duration}s"
+        psr_dir2="${params.vcs_dir}/${params.obsid}/pointings/${source}/vdif_${params.duration}s"
+        if [[ ! -d \$psr_dir1 ]]; then
+            mkdir -p -m 771 \$psr_dir1
+        fi
+        if [[ ! -d \$psr_dir2 ]]; then
+            mkdir -p -m 771 \$psr_dir2
+        fi
 
-    # Ensure that there is a directory for the beamformed data
-    psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${source}/vdif_${params.duration}s"
-    if [[ ! -d \$psr_dir ]]; then
-        mkdir -p -m 771 \$psr_dir
-    fi
+        # Move any existing beamformed data into a subdirectory
+        old_files1=\$(find \$psr_dir1 -type f)
+        if [[ -n \$old_files1 ]]; then
+            archive1="\${psr_dir1}/beamformed_data_archived_\$(date +%s)"
+            mkdir -p -m 771 \$archive1
+            echo \$old_files | xargs -n1 mv -t \$archive1
+        fi
+        old_files2=\$(find \$psr_dir2 -type f)
+        if [[ -n \$old_files2 ]]; then
+            archive2="\${psr_dir2}/beamformed_data_archived_\$(date +%s)"
+            mkdir -p -m 771 \$archive2
+            echo \$old_files | xargs -n1 mv -t \$archive2
+        fi
+        """
+    } else if ( params.fits ) {
+        """
+        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+            echo "Error: Cannot find observation directory."
+            exit 1
+        fi
 
-    # Move any existing beamformed data into a subdirectory
-    old_files=\$(find \$psr_dir -type f)
-    if [[ -n \$old_files ]]; then
-        archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
-        mkdir -p -m 771 \$archive
-        echo \$old_files | xargs -n1 mv -t \$archive
-    fi
-    """
+        # Ensure that there is a directory for the beamformed data
+        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${source}/psrfits_${params.duration}s"
+        if [[ ! -d \$psr_dir ]]; then
+            mkdir -p -m 771 \$psr_dir
+        fi
+
+        # Move any existing beamformed data into a subdirectory
+        old_files=\$(find \$psr_dir -type f)
+        if [[ -n \$old_files ]]; then
+            archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
+            mkdir -p -m 771 \$archive
+            echo \$old_files | xargs -n1 mv -t \$archive
+        fi
+        """
+    } else if ( params.vdif ) {
+        """
+        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+            echo "Error: Cannot find observation directory."
+            exit 1
+        fi
+
+        # Ensure that there is a directory for the beamformed data
+        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${source}/vdif_${params.duration}s"
+        if [[ ! -d \$psr_dir ]]; then
+            mkdir -p -m 771 \$psr_dir
+        fi
+
+        # Move any existing beamformed data into a subdirectory
+        old_files=\$(find \$psr_dir -type f)
+        if [[ -n \$old_files ]]; then
+            archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
+            mkdir -p -m 771 \$archive
+            echo \$old_files | xargs -n1 mv -t \$archive
+        fi
+        """
+    }
 }
 
 process get_calibration_solution {
-    tag "${source}"
+    tag "${source}" instanceof String ? "${source}" : 'multi-psr'
 
     input:
     val(source)
@@ -219,6 +268,7 @@ process get_pointings {
     script:
     if ( params.convert_rts_flags ) {
         """
+        # Get equatorial coordinates
         RAJ=\$(psrcat -e2 ${psr} | grep "RAJ " | awk '{print \$2}')
         DECJ=\$(psrcat -e2 ${psr} | grep "DECJ " | awk '{print \$2}')
         if [[ -z \$RAJ || -z \$DECJ ]]; then
@@ -484,8 +534,8 @@ process dspsr {
 
     # Move files to publish directory
     mv *_updated.hdr \${dataproduct_dir}
-    mv *.ar *.png *.par \${dataproduct_dir}/dspsr
-    cp -L -t \$dataproduct_dir *.par
+    mv *.ar *.png \${dataproduct_dir}/dspsr
+    cp -L -t \${dataproduct_dir}/dspsr *.par
 
     # If there are beamformed files already, we are re-folding, so skip this step
     old_files=\$(find \$dataproduct_dir -type f -name "*.vdif")
@@ -790,21 +840,17 @@ process copy_to_acacia {
 // Beamform and fold on catalogued pulsar in VDIF/singlepixel mode
 workflow spsr {
     take:
-        // Channel of individual pulsar Jnames
-        psrs
+        // Channel of [source, obsmeta, calmeta, calsol]
+        job_info
     main:
         // Beamform and fold each pulsar
         if ( params.nosearch_pdmp ) {
-            check_directories(psrs)
-                | get_calibration_solution
-                | get_pointings
+            get_pointings(job_info)
                 | vcsbeam
                 | get_ephemeris
                 | dspsr
         } else {
-            check_directories(psrs)
-                | get_calibration_solution
-                | get_pointings
+            get_pointings(job_info)
                 | vcsbeam
                 | get_ephemeris
                 | dspsr
@@ -815,12 +861,12 @@ workflow spsr {
 // Beamform on pointing in VDIF/singlepixel mode
 workflow spt {
     take:
-        // Channel of individual pointings
-        pointings
+        // Channel of [source, obsmeta, calmeta, calsol]
+        job_info
     main:
         if ( params.acacia_prefix_base ) {
             // Beamform on each pointing and copy to Acacia
-            get_calibration_solution(pointings)
+            job_info
                 | map { [ it[0].split('_')[0], it[0].split('_')[1], it[1], it[2], it[3] ] }
                 | parse_pointings
                 | vcsbeam
@@ -828,7 +874,7 @@ workflow spt {
                 | copy_to_acacia
         } else {
             // Beamform on each pointing
-            get_calibration_solution(pointings)
+            job_info
                 | map { [ it[0].split('_')[0], it[0].split('_')[1], it[1], it[2], it[3] ] }
                 | parse_pointings
                 | vcsbeam
