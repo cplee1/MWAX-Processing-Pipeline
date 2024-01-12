@@ -115,6 +115,8 @@ process asvo_vis_download {
 process check_asvo_job_files {
     shell '/bin/bash', '-veuo', 'pipefail'
 
+    tag "${jobid}"
+
     errorStrategy {
         failure_reason = [
             2: "ASVO job directory does not exist",
