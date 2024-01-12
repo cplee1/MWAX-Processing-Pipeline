@@ -80,28 +80,114 @@ process locate_fits_files {
     """
 }
 
+process check_directories {
+    tag "${source}"
+
+    shell '/bin/bash', '-veuo', 'pipefail'
+
+    input:
+    val(source)
+
+    output:
+    val(source)
+
+    script:
+    """
+    if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
+        echo "Error: Please provide ObsID and CalID."
+        exit 1
+    fi
+
+    if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
+        echo "Error: Cannot find observation directory."
+        exit 1
+    fi
+
+    # Ensure that there is a directory for the beamformed data
+    psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${source}/vdif_${params.duration}s"
+    if [[ ! -d \$psr_dir ]]; then
+        mkdir -p -m 771 \$psr_dir
+    fi
+
+    # Move any existing beamformed data into a subdirectory
+    old_files=\$(find \$psr_dir -type f)
+    if [[ -n \$old_files ]]; then
+        archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
+        mkdir -p -m 771 \$archive
+        echo \$old_files | xargs -n1 mv -t \$archive
+    fi
+    """
+}
+
+process get_calibration_solution {
+    shell '/bin/bash', '-veuo', 'pipefail'
+
+    tag "${source}"
+
+    input:
+    val(source)
+
+    output:
+    tuple val(source), env(obsmeta), env(calmeta), env(calsol)
+
+    script:
+    if ( params.use_default_sol ) {
+        """
+        if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits ]]; then
+            echo "VCS observation metafits not found. Exiting."
+            exit 1
+        fi
+
+        if [[ ! -r ${params.calsol_dir}/${params.obsid}/${params.calid}/${params.calid}.metafits ]]; then
+            echo "Calibration observation metafits not found. Exiting."
+            exit 1
+        fi
+
+        if [[ ! -e ${params.calsol_dir}/${params.obsid}/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
+            echo "Default calibration solution not found. Exiting."
+            exit 1
+        fi
+
+        obsmeta="${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits"
+        calmeta="${params.calsol_dir}/${params.obsid}/${params.calid}/${params.calid}.metafits"
+        calsol="${params.calsol_dir}/${params.obsid}/${params.calid}/hyperdrive/hyperdrive_solutions.bin"
+        """
+    } else {
+        """
+        if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits ]]; then
+            echo "VCS observation metafits not found. Exiting."
+            exit 1
+        fi
+
+        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits ]]; then
+            echo "Calibration observation metafits not found. Exiting."
+            exit 1
+        fi
+
+        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
+            echo "Calibration solution not found. Exiting."
+            exit 1
+        fi
+
+        obsmeta="${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits"
+        calmeta="${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits"
+        calsol="${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin"
+        """
+    }
+}
+
 process parse_pointings {
     shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
-    tuple val(RAJ), val(DECJ)
+    tuple val(RAJ), val(DECJ), val(obsmeta), val(calmeta), val(calsol)
 
     output:
-    tuple env(pointing_label), path('pointings.txt'), path('flagged_tiles.txt')
+    tuple env(pointing_label), val(obsmeta), val(calmeta), val(calsol), path('pointings.txt'), path('flagged_tiles.txt')
 
     script:
     if ( params.convert_rts_flags ) {
         """
-        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
-            echo "Error: Please provide ObsID and CalID."
-            exit 1
-        fi
-
-        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-            echo "Error: Cannot find observation directory."
-            exit 1
-        fi
-
         # Label for naming files and directories
         pointing_label="${RAJ}_${DECJ}"
 
@@ -110,23 +196,13 @@ process parse_pointings {
 
         # Write the tile flags to file
         echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
-        ${params.convert_flags_script} \
-            -m ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \
-            -i flagged_tiles_rts.txt \
+        ${params.convert_flags_script} \\
+            -m ${calmeta} \\
+            -i flagged_tiles_rts.txt \\
             -o flagged_tiles.txt
         """
     } else {
         """
-        if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
-            echo "Error: Please provide ObsID and CalID."
-            exit 1
-        fi
-
-        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-            echo "Error: Cannot find observation directory."
-            exit 1
-        fi
-
         # Label for naming files and directories
         pointing_label="${RAJ}_${DECJ}"
 
@@ -147,101 +223,49 @@ process get_pointings {
     shell '/bin/bash', '-veuo', 'pipefail'
 
     input:
-    val(psr)
+    tuple val(psr), val(obsmeta), val(calmeta), val(calsol)
 
     output:
-    tuple val(psr), path('pointings.txt'), path('flagged_tiles.txt')
+    tuple val(psr), val(obsmeta), val(calmeta), val(calsol), path('pointings.txt'), path('flagged_tiles.txt')
 
     script:
-    """
-    if [[ -z ${params.obsid} || -z ${params.calid} ]]; then
-        echo "Error: Please provide ObsID and CalID."
-        exit 1
-    fi
-
-    if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-        echo "Error: Cannot find observation directory."
-        exit 1
-    fi
-
-    RAJ=\$(psrcat -e2 ${psr} | grep "RAJ " | awk '{print \$2}')
-    DECJ=\$(psrcat -e2 ${psr} | grep "DECJ " | awk '{print \$2}')
-    if [[ -z \$RAJ || -z \$DECJ ]]; then
-        echo "Error: Could not retrieve pointing from psrcat."
-        exit 1
-    fi
-    # Write equatorial coordinates to file
-    echo "\${RAJ} \${DECJ}" | tee pointings.txt
-
-    # Ensure that there is a directory for the beamformed data
-    psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s"
-    if [[ ! -d \$psr_dir ]]; then
-        mkdir -p -m 771 \$psr_dir
-    fi
-
-    # Move any existing beamformed data into a subdirectory
-    old_files=\$(find \$psr_dir -type f)
-    if [[ -n \$old_files ]]; then
-        archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
-        mkdir -p -m 771 \$archive
-        echo \$old_files | xargs -n1 mv -t \$archive
-    fi
-
-    # Write the tile flags to file
-    echo "${params.flagged_tiles}" | tee flagged_tiles.txt
-    """
-}
-
-process get_calibration_solution {
-    shell '/bin/bash', '-veuo', 'pipefail'
-
-    tag "${psr}"
-
-    input:
-    tuple val(psr), val(pointings), val(flagged_tiles)
-
-    output:
-    tuple val(psr), val(pointings), val(flagged_tiles), env(calsol)
-
-    script:
-    if ( params.use_default_sol ) {
+    if ( params.convert_rts_flags ) {
         """
-        if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits ]]; then
-            echo "VCS observation metafits not found. Exiting."
+        RAJ=\$(psrcat -e2 ${psr} | grep "RAJ " | awk '{print \$2}')
+        DECJ=\$(psrcat -e2 ${psr} | grep "DECJ " | awk '{print \$2}')
+        if [[ -z \$RAJ || -z \$DECJ ]]; then
+            echo "Error: Could not retrieve pointing from psrcat."
             exit 1
         fi
+        # Write equatorial coordinates to file
+        echo "\${RAJ} \${DECJ}" | tee pointings.txt
 
-        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits ]]; then
-            echo "Calibration observation metafits not found. Exiting."
-            exit 1
-        fi
+        # Write the tile flags to file
+        echo "${params.flagged_tiles}" | tee flagged_tiles.txt
 
-        if [[ ! -e ${params.calsol_dir}/${params.obsid}/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
-            echo "Default calibration solution not found. Exiting."
-            exit 1
-        fi
+        # Write the tile flags to file
+        echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
+        ${params.convert_flags_script} \\
+            -m ${calmeta} \\
+            -i flagged_tiles_rts.txt \\
+            -o flagged_tiles.txt
 
-        calsol="${params.calsol_dir}/${params.obsid}/${params.calid}/hyperdrive/hyperdrive_solutions.bin"
         """
     } else {
         """
-        if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits ]]; then
-            echo "VCS observation metafits not found. Exiting."
+        RAJ=\$(psrcat -e2 ${psr} | grep "RAJ " | awk '{print \$2}')
+        DECJ=\$(psrcat -e2 ${psr} | grep "DECJ " | awk '{print \$2}')
+        if [[ -z \$RAJ || -z \$DECJ ]]; then
+            echo "Error: Could not retrieve pointing from psrcat."
             exit 1
         fi
+        # Write equatorial coordinates to file
+        echo "\${RAJ} \${DECJ}" | tee pointings.txt
 
-        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits ]]; then
-            echo "Calibration observation metafits not found. Exiting."
-            exit 1
-        fi
-
-        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
-            echo "Calibration solution not found. Exiting."
-            exit 1
-        fi
-
-        calsol="${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin"
+        # Write the tile flags to file
+        echo "${params.flagged_tiles}" | tee flagged_tiles.txt
         """
+
     }
 }
 
@@ -255,7 +279,7 @@ process vcsbeam {
 
     maxForks 3
 
-    time { 4.hour * task.attempt }
+    time { 1.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
@@ -263,7 +287,7 @@ process vcsbeam {
     publishDir "${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s", mode: 'move', enabled: publish_vdif
 
     input:
-    tuple val(psr), val(pointings), val(flagged_tiles), val(calibration_solution)
+    tuple val(psr), val(obsmeta), val(calmeta), val(calsol), val(pointings), val(flagged_tiles)
 
     output:
     tuple val(psr), path('*.{vdif,hdr}')
@@ -272,16 +296,16 @@ process vcsbeam {
     """
     make_mwa_tied_array_beam -V
     echo "\$(date): Executing make_mwa_tied_array_beam."
-    srun make_mwa_tied_array_beam \
-        -m ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits \
-        -b ${params.begin} \
-        -T ${params.duration} \
-        -f ${params.low_chan} \
-        -d ${params.vcs_dir}/${params.obsid}/combined \
-        -P ${pointings} \
-        -F ${flagged_tiles} \
-        -c ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits \
-        -C ${calibration_solution} \
+    srun make_mwa_tied_array_beam \\
+        -m ${obsmeta} \\
+        -b ${params.begin} \\
+        -T ${params.duration} \\
+        -f ${params.low_chan} \\
+        -d ${params.vcs_dir}/${params.obsid}/combined \\
+        -P ${pointings} \\
+        -F ${flagged_tiles} \\
+        -c ${calmeta} \\
+        -C ${calsol} \\
         -R NONE -U 0,0 -O -X --smart -v
     echo "\$(date): Finished executing make_mwa_tied_array_beam."
     """
@@ -394,7 +418,7 @@ process dspsr {
     
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time { 8.hour * task.attempt }
+    time { 2.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 2
@@ -420,9 +444,9 @@ process dspsr {
     if [[ -z \$spin_period_ms ]]; then
         echo "Error: Cannot locate spin period."
         exit 1
-    elif (( \$(echo "\$spin_period_ms < ${params.nbin}/10" | bc -l) )); then
-        # Set nbins to 10x the period in ms, and always round down
-        nbin=\$(printf "%.0f" \$(echo "scale=0; 10 * \$spin_period_ms - 0.5" | bc))
+    elif (( \$(echo "\$spin_period_ms < ${params.nbin}/20" | bc -l) )); then
+        # Set nbins to 20x the period in ms, and always round down
+        nbin=\$(printf "%.0f" \$(echo "scale=0; 20 * \$spin_period_ms - 0.5" | bc))
     else
         nbin=${params.nbin}
     fi
@@ -440,13 +464,13 @@ process dspsr {
             else
                 size_mb=4096
                 outfile=\${datafile_hdr%.hdr}
-                dspsr \
-                    -E ${par_file} \
-                    -b \$nbin \
-                    -U \$size_mb \
-                    -F ${params.fine_chan}:D \
-                    -L ${params.tint} -A \
-                    -O \$outfile \
+                dspsr \\
+                    -E ${par_file} \\
+                    -b \$nbin \\
+                    -U \$size_mb \\
+                    -F ${params.fine_chan}:D \\
+                    -L ${params.tint} -A \\
+                    -O \$outfile \\
                     \$new_datafile_hdr
             fi
         fi
@@ -464,7 +488,7 @@ process dspsr {
     rm channel_archives.txt
 
     # Flag first time integration
-    # paz -s 0 -m \${base_name}.ar
+    paz -s 0 -m \${base_name}.ar
 
     # Plotting
     pav -FTp -C -Dd -g \${base_name}_pulse_profile.png/png \${base_name}.ar
@@ -477,7 +501,9 @@ process dspsr {
     fi
 
     # Move files to publish directory
-    mv *.ar *.png *_updated.hdr *.par \${dataproduct_dir}/dspsr
+    mv *_updated.hdr \${dataproduct_dir}
+    mv *.ar *.png *.par \${dataproduct_dir}/dspsr
+    cp -L -t \$dataproduct_dir *.par
 
     # If there are beamformed files already, we are re-folding, so skip this step
     old_files=\$(find \$dataproduct_dir -type f -name "*.vdif")
@@ -542,25 +568,25 @@ process prepfold {
     if [[ -z \$spin_period_ms ]]; then
         echo "Error: Cannot locate spin period."
         exit 1
-    elif (( \$(echo "\$spin_period_ms < ${params.nbin}/10" | bc -l) )); then
-        # Set nbins to 10x the period in ms, and always round down
-        nbin=\$(printf "%.0f" \$(echo "scale=0; 10 * \$spin_period_ms - 0.5" | bc))
+    elif (( \$(echo "\$spin_period_ms < ${params.nbin}/20" | bc -l) )); then
+        # Set nbins to 20x the period in ms, and always round down
+        nbin=\$(printf "%.0f" \$(echo "scale=0; 20 * \$spin_period_ms - 0.5" | bc))
     else
         nbin=${params.nbin}
     fi
 
-    prepfold \
-        -ncpus ${task.cpus} \
-        \$par_input \
-        -noxwin \
-        -noclip \
-        -noscales \
-        -nooffsets \
-        -n \$nbin \
-        -nsub ${params.nsub} \
-        -npart ${params.npart} \
-        \$bin_flag \
-        \$nosearch_flag \
+    prepfold \\
+        -ncpus ${task.cpus} \\
+        \$par_input \\
+        -noxwin \\
+        -noclip \\
+        -noscales \\
+        -nooffsets \\
+        -n \$nbin \\
+        -nsub ${params.nsub} \\
+        -npart ${params.npart} \\
+        \$bin_flag \\
+        \$nosearch_flag \\
         \$(cat fitsfiles.txt)
 
     dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/psrfits_${params.duration}s
@@ -589,7 +615,7 @@ process pdmp {
     
     shell '/bin/bash', '-veuo', 'pipefail'
 
-    time { 4.hour * task.attempt }
+    time { 2.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 1
@@ -601,6 +627,7 @@ process pdmp {
     output:
     path('*.png')
     path('pdmp*')
+    path('*bestP0DM')
 
     script:
     """
@@ -624,11 +651,18 @@ process pdmp {
         ms_flag="-ms ${params.pdmp_ms}"
     fi
 
-    pdmp \
-        \$mc_flag \
-        \$ms_flag \
-        -g \${ar_file%.ar}_pdmp.png/png \
-        \${ar_file}
+    pdmp \\
+        \$mc_flag \\
+        \$ms_flag \\
+        -g \${ar_file%.ar}_pdmp.png/png \\
+        \${ar_file} \\
+        | tee pdmp.log
+
+    # Update the period and DM
+    best_p0_ms=\$(grep "Best TC Period" pdmp.log | awk '{print \$6}')
+    best_p0_s=\$(printf "%.10f" \$(echo "scale=10; \$best_p0_ms / 1000" | bc))
+    best_DM=\$(grep "Best DM" pdmp.log | awk '{print \$4}')
+    pam -e bestP0DM --period \$best_p0_s -d \$best_DM \${ar_file}
 
     # Create the publish directory
     mkdir -p -m 771 \${base_dir}/pdmp
@@ -785,14 +819,16 @@ workflow spsr {
     main:
         // Beamform and fold each pulsar
         if ( params.nosearch_pdmp ) {
-            get_pointings(psrs)
+            check_directories(psrs)
                 | get_calibration_solution
+                | get_pointings
                 | vcsbeam
                 | get_ephemeris
                 | dspsr
         } else {
-            get_pointings(psrs)
+            check_directories(psrs)
                 | get_calibration_solution
+                | get_pointings
                 | vcsbeam
                 | get_ephemeris
                 | dspsr
@@ -808,15 +844,17 @@ workflow spt {
     main:
         if ( params.acacia_prefix_base ) {
             // Beamform on each pointing and copy to Acacia
-            parse_pointings(pointings)
-                | get_calibration_solution
+            get_calibration_solution(pointings)
+                | map { [ it[0].split('_')[0], it[0].split('_')[1], it[1], it[2], it[3] ] }
+                | parse_pointings
                 | vcsbeam
                 | create_tarball
                 | copy_to_acacia
         } else {
             // Beamform on each pointing
-            parse_pointings(pointings)
-                | get_calibration_solution
+            get_calibration_solution(pointings)
+                | map { [ it[0].split('_')[0], it[0].split('_')[1], it[1], it[2], it[3] ] }
+                | parse_pointings
                 | vcsbeam
         }
 }

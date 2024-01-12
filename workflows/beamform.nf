@@ -30,14 +30,12 @@ workflow bf {
         if ( params.pointings ) {
             // Get pointings from command line input
             Channel.from(params.pointings.split(' '))
-                | map { pointing -> [ pointing.split('_')[0], pointing.split('_')[1] ] }
                 | set { pointings }
         } else if ( params.pointings_file ) {
             // Get pointings from file
             Channel.fromPath(params.pointings_file)
                 | splitCsv
                 | flatten
-                | map { pointing -> [ pointing.split('_')[0], pointing.split('_')[1] ] }
                 | set { pointings }
         }
         if ( params.skip_bf ) {
