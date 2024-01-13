@@ -625,7 +625,8 @@ process prepfold {
     fi
 
     # Move files to publish directory
-    mv *pfd* *.par \${dataproduct_dir}/prepfold
+    mv *pfd* \${dataproduct_dir}/prepfold
+    cp -L -t \${dataproduct_dir}/prepfold *.par
 
     # If there are beamformed files already, we are re-folding, so skip this step
     old_files=\$(find \$dataproduct_dir -type f -name "*.fits")
