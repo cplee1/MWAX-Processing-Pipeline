@@ -80,6 +80,7 @@ process check_directories {
     tag "${source}"
 
     input:
+    val(ready)
     val(source)
 
     output:
