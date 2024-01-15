@@ -14,6 +14,7 @@ workflow bf {
     if ( params.psrs ) {
         // Beamform and fold/search catalogued pulsars
         Channel.from(params.psrs.split(' '))
+            | map { true, it }
             | check_directories
             | get_calibration_solution
             | set { job_info }
@@ -41,6 +42,7 @@ workflow bf {
         if ( params.pointings ) {
             // Get pointings from command line input
             Channel.from(params.pointings.split(' '))
+                | map { true, it }
                 | check_directories
                 | get_calibration_solution
                 | set { job_info }
@@ -49,6 +51,7 @@ workflow bf {
             Channel.fromPath(params.pointings_file)
                 | splitCsv
                 | flatten
+                | map { true, it }
                 | check_directories
                 | get_calibration_solution
                 | set { job_info }
