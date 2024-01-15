@@ -17,8 +17,8 @@ process asvo_vcs_download {
     errorStrategy {
         if ( task.exitStatus == 75 ) {
             wait_hours = Math.pow(2, task.attempt - 1 as int)
-            log.info("Sleeping for ${wait_hours} minutes and retrying task ${task.hash}")
-            sleep(wait_hours * 60 * 1000 as long)
+            log.info("Sleeping for ${wait_hours} hours and retrying task ${task.hash}")
+            sleep(wait_hours * 60 * 60 * 1000 as long)
             return 'retry'
         }
         log.info("task ${task.hash} failed with code ${task.exitStatus}")
@@ -202,7 +202,7 @@ process move_data {
     tuple val(jobid), val(fpath), val(obsid), val(mode)
 
     output:
-    val(params.obsid)
+    val(true)
 
     script:
     if ( mode == 'vcs' ) {
@@ -257,6 +257,6 @@ process move_data {
         fi
         """
     } else {
-        println "Invalid file transfer mode encountered: ${mode}."
+        System.err.println("ERROR: Invalid file transfer mode encountered: ${mode}")
     }
 }
