@@ -44,7 +44,7 @@ fi
 for ((band_idx=0; band_idx<${#lowchans[@]}; band_idx++)); do
     lowchan=${lowchans[band_idx]}
     highchan=${highchans[band_idx]}
-    numchan=$((highchan - lowchan))
+    numchan=$((highchan - lowchan + 1))
     beamform_script=beamform_ch${lowchan}-${highchan}.batch
 
     cp ${script_dir}/beamform_template.batch $beamform_script
