@@ -10,14 +10,11 @@ this workflow assumes PSRFITS.
 */
 
 process parse_pointings {
-    tag 'multi-psr'
-    
     input:
-    tuple val(RAJ), val(DECJ), val(obsmeta), val(calmeta), val(calsol)
+    tuple val(RAJ), val(DECJ)
 
     output:
-    path("pointings_${task.index}.txt"), emit: pointing_info
-    tuple val(obsmeta), val(calmeta), val(calsol), emit: job_info
+    path("pointings_${task.index}.txt")
 
     script:
     """
@@ -37,14 +34,11 @@ process parse_pointings {
 process get_pointings {
     label 'psranalysis'
 
-    tag 'multi-psr'
-
     input:
-    tuple val(psr), val(obsmeta), val(calmeta), val(calsol)
+    val(psr)
 
     output:
-    path("pointings_${task.index}.txt"), emit: pointing_info
-    tuple val(obsmeta), val(calmeta), val(calsol), emit: job_info
+    path("pointings_${task.index}.txt")
 
     script:
     """
@@ -67,14 +61,16 @@ process get_pointings {
 }
 
 process combine_pointings {
-    tag 'multi-psr'
-
     input:
     path(pointing_info_files)
-    tuple val(obsmeta), val(calmeta), val(calsol)
+    val(calmeta)
+    val(flagged_tiles)
 
     output:
-    tuple val(obsmeta), val(calmeta), val(calsol), path('labels.txt'), path('pointings.txt'), path('pointing_pairs.txt'), path('flagged_tiles.txt')
+    path('pointings.txt'), emit: pointings
+    path('pointing_pairs.txt'), emit: pairs
+    path('flagged_tiles.txt'), emit: flagged_tiles
+    
 
     script:
     if ( params.convert_rts_flags ) {
@@ -86,10 +82,9 @@ process combine_pointings {
         # Make text files to give to VCSBeam
         cat pointings_labels.txt | awk '{print \$1" "\$2}' > pointings.txt
         cat pointings_labels.txt | awk '{print \$3" "\$4}' > pointing_pairs.txt
-        cat pointings_labels.txt | awk '{print \$3}' > labels.txt
 
         # Write the tile flags to file
-        echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
+        echo "${flagged_tiles}" | tee flagged_tiles_rts.txt
         ${params.convert_flags_script} \\
             -m ${calmeta} \\
             -i flagged_tiles_rts.txt \
@@ -104,10 +99,9 @@ process combine_pointings {
         # Make text files to give to VCSBeam
         cat pointings_labels.txt | awk '{print \$1" "\$2}' > pointings.txt
         cat pointings_labels.txt | awk '{print \$3" "\$4}' > pointing_pairs.txt
-        cat pointings_labels.txt | awk '{print \$3}' > labels.txt
 
         # Write the tile flags to file
-        echo "${params.flagged_tiles}" | tee flagged_tiles.txt
+        echo "${flagged_tiles}" | tee flagged_tiles.txt
         """
     }
 }
@@ -115,8 +109,6 @@ process combine_pointings {
 process vcsbeam {
     label 'gpu'
     label 'vcsbeam'
-
-    tag 'multi-psr'
 
     maxForks 1
 
@@ -126,30 +118,36 @@ process vcsbeam {
     maxRetries 1
 
     input:
-    tuple val(sources), val(obsmeta), val(calmeta), val(calsol), val(pointings), val(pairs), val(flagged_tiles)
+    val(sources)
+    val(pointings_dir)
+    val(data_dir)
+    val(duration)
+    val(begin)
+    val(low_chan)
+    val(obs_metafits)
+    val(cal_metafits)
+    val(cal_solution)
+    val(flagged_tiles)
+    val(pointings)
+    val(pairs)
 
     output:
-    val(sources)
+    val(true)
 
     script:
     """
-    if [[ -z \$(cat ${pairs}) ]]; then
-        echo "Error: Pointing globs file is empty."
-        exit 1
-    fi
-
     make_mwa_tied_array_beam -V
     echo "\$(date): Executing make_mwa_tied_array_beam."
     srun make_mwa_tied_array_beam \\
-        -m ${obsmeta} \\
-        -b ${params.begin} \\
-        -T ${params.duration} \\
-        -f ${params.low_chan} \\
-        -d ${params.vcs_dir}/${params.obsid}/combined \\
+        -m ${obs_metafits} \\
+        -b ${begin} \\
+        -T ${duration} \\
+        -f ${low_chan} \\
+        -d ${data_dir} \\
         -P ${pointings} \\
         -F ${flagged_tiles} \\
-        -c ${calmeta} \\
-        -C ${calsol} \\
+        -c ${cal_metafits} \\
+        -C ${cal_solution} \\
         -R NONE -U 0,0 -O -X --smart -p
     echo "\$(date): Finished executing make_mwa_tied_array_beam."
 
@@ -163,45 +161,7 @@ process vcsbeam {
             echo "Error: Cannot find pointing for pulsar \${pulsars[i]}."
             exit 1
         fi
-        find . -type f -name "\$pointing_glob" -exec mv -t "${params.vcs_dir}/${params.obsid}/pointings/\${pulsars[i]}/psrfits_${params.duration}s" '{}' \\;
+        find . -type f -name "\$pointing_glob" -exec mv -t "${pointings_dir}/\${pulsars[i]}/psrfits_${duration}s" '{}' \\;
     done
     """
-}
-
-include { check_directories          } from './singlepixel_module'
-include { get_calibration_solution   } from './singlepixel_module'
-include { locate_fits_files          } from './singlepixel_module'
-include { get_ephemeris              } from './singlepixel_module'
-include { prepfold                   } from './singlepixel_module'
-
-// Beamform and fold on catalogued pulsar in PSRFITS/multipixel mode
-workflow mpsr {
-    take:
-        // Channel of [source, obsmeta, calmeta, calsol]
-        job_info
-    main:
-        // Beamform once
-        get_pointings(job_info)
-
-        combine_pointings(get_pointings.out.pointing_info.collect(), get_pointings.out.job_info.first())
-            | map { [ it[3].splitCsv().flatten().collect(), it[0], it[1], it[2], it[4], it[5], it[6] ] }
-            | vcsbeam
-            | flatten
-            | locate_fits_files
-            | get_ephemeris
-            | prepfold
-}
-
-// Beamform on pointing in PSRFITS/multipixel mode
-workflow mpt {
-    take:
-        // Channel of [source, obsmeta, calmeta, calsol]
-        job_info
-    main:
-        // Beamform on each pointing
-        parse_pointings(job_info)
-
-        combine_pointings(parse_pointings.out.pointing_info.collect(), parse_pointings.out.job_info.first())
-            | map { [ it[3].splitCsv().flatten().collect(), it[0], it[1], it[2], it[4], it[5], it[6] ] }
-            | vcsbeam
 }

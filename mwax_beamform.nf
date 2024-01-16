@@ -187,7 +187,7 @@ if ( params.help ) {
     exit(0)
 }
 
-include { bf } from './workflows/beamform'
+include { beamform } from './workflows/beamform'
 
 workflow {
     if ( ! params.obsid ) {
@@ -213,7 +213,7 @@ workflow {
                 System.err.println("ERROR: Observation start GPS time is not defined")
             }
             if ( params.calid && params.begin ) {
-                bf()  // Beamform, dedisperse, and fold
+                beamform()  // Beamform, dedisperse, and fold
             }
         }
     }

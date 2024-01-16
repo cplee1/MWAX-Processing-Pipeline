@@ -1,7 +1,7 @@
 /*
 Singlepixel Module
 ~~~~~~~~~~~~~~~~~~
-This module contains processes and workflows for beamforming and folding on 
+This module contains processes for beamforming and folding on 
 multiple pulsars independently of one another. Each pulsar is assigned its
 own beamforming job which is then fed into a folding job.
 
@@ -11,66 +11,66 @@ processes are included here for if the use wants to re-fold their PSRFITS
 data, which does not involve the multipixel beamformer.
 */
 
-if ( params.psrs || params.acacia_prefix_base ) {
-    publish_vdif = false
-} else {
-    publish_vdif = true
-}
+def publish_vdif = params.psrs != null || params.acacia_prefix_base != null ? false : true
 
 process locate_vdif_files {
-    tag "${psr}"
+    tag "${source}"
 
     input:
-    val(psr)
+    val(source)
+    val(source_dir)
+    val(duration)
 
     output:
-    tuple val(psr), path('*.{vdif,hdr}')
+    path('*.{vdif,hdr}')
 
     script:
     """
-    psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s"
+    vdif_dir="${source_dir}/vdif_${duration}s"
     if [[ ! -d \$psr_dir ]]; then
-        echo "Error: Cannot locate data directory."
+        echo "ERROR :: Cannot locate data directory: \${vdif_dir}"
         exit 1
     fi
-    find \$psr_dir -type f -name "*.vdif" -exec ln -s '{}' \\;
-    find \$psr_dir -type f -name "*.hdr" -exec ln -s '{}' \\;
+    find \$vdif_dir -type f -name "*.vdif" -exec ln -s '{}' \\;
+    find \$vdif_dir -type f -name "*.hdr" -exec ln -s '{}' \\;
 
-    if [[ -d \${psr_dir}/dspsr ]]; then
-        old_files=\$(find \${psr_dir}/dspsr -type f)
-        if [[ -n \$old_files ]]; then
-            archive="\${psr_dir}/dspsr_archived_\$(date +%s)"
+    if [[ -d \${vdif_dir}/dspsr ]]; then
+        old_dspsr_files=\$(find \${vdif_dir}/dspsr -type f)
+        if [[ -n \$old_dspsr_files ]]; then
+            archive="\${vdif_dir}/dspsr_archived_\$(date +%s)"
             mkdir -p -m 771 \$archive
-            echo \$old_files | xargs -n1 mv -t \$archive
+            echo \$old_dspsr_files | xargs -n1 mv -t \$archive
         fi
     fi
     """
 }
 
-process locate_fits_files {
-    tag "${psr}"
+process locate_psrfits_files {
+    tag "${source}"
 
     input:
-    val(psr)
+    val(source)
+    val(source_dir)
+    val(duration)
 
     output:
-    tuple val(psr), path('*.fits')
+    path('*.fits')
 
     script:
     """
-    psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${psr}/psrfits_${params.duration}s"
-    if [[ ! -d \$psr_dir ]]; then
+    psrfits_dir="${source_dir}/psrfits_${duration}s"
+    if [[ ! -d \$psrfits_dir ]]; then
         echo "Error: Cannot locate data directory."
         exit 1
     fi
-    find \$psr_dir -type f -name "*.fits" -exec ln -s '{}' \\;
+    find \$psrfits_dir -type f -name "*.fits" -exec ln -s '{}' \\;
 
-    if [[ -d \${psr_dir}/prepfold ]]; then
-        old_files=\$(find \${psr_dir}/prepfold -type f)
-        if [[ -n \$old_files ]]; then
-            archive="\${psr_dir}/prepfold_archived_\$(date +%s)"
+    if [[ -d \${psrfits_dir}/prepfold ]]; then
+        old_prepfold_files=\$(find \${psrfits_dir}/prepfold -type f)
+        if [[ -n \$old_prepfold_files ]]; then
+            archive="\${psrfits_dir}/prepfold_archived_\$(date +%s)"
             mkdir -p -m 771 \$archive
-            echo \$old_files | xargs -n1 mv -t \$archive
+            echo \$old_prepfold_files | xargs -n1 mv -t \$archive
         fi
     fi
     """
@@ -81,149 +81,194 @@ process check_directories {
 
     input:
     val(ready)
+    val(do_fits)
+    val(do_vdif)
+    val(base_dir)
+    val(obsid)
     val(source)
+    val(duration)
 
     output:
-    val(source)
+    env(data_dir), emit: data_dir
+    env(pointings_dir), emit: pointings_dir
+    env(source_dir), emit: source_dir
 
     script:
-    if ( params.fits && params.vdif ) {
+    if ( do_fits && do_vdif ) {
         """
-        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-            echo "Error: Cannot find observation directory."
+        if [[ ! -d ${base_dir} ]]; then
+            echo "ERROR :: Base directory does not exist: ${base_dir}"
             exit 1
         fi
 
-        # Ensure that there is a directory for the beamformed data
-        psr_dir1="${params.vcs_dir}/${params.obsid}/pointings/${source}/psrfits_${params.duration}s"
-        psr_dir2="${params.vcs_dir}/${params.obsid}/pointings/${source}/vdif_${params.duration}s"
-        if [[ ! -d \$psr_dir1 ]]; then
-            mkdir -p -m 771 \$psr_dir1
-        fi
-        if [[ ! -d \$psr_dir2 ]]; then
-            mkdir -p -m 771 \$psr_dir2
-        fi
-
-        # Move any existing beamformed data into a subdirectory
-        old_files1=\$(find \$psr_dir1 -type f)
-        if [[ -n \$old_files1 ]]; then
-            archive1="\${psr_dir1}/beamformed_data_archived_\$(date +%s)"
-            mkdir -p -m 771 \$archive1
-            echo \$old_files | xargs -n1 mv -t \$archive1
-        fi
-        old_files2=\$(find \$psr_dir2 -type f)
-        if [[ -n \$old_files2 ]]; then
-            archive2="\${psr_dir2}/beamformed_data_archived_\$(date +%s)"
-            mkdir -p -m 771 \$archive2
-            echo \$old_files | xargs -n1 mv -t \$archive2
-        fi
-        """
-    } else if ( params.fits ) {
-        """
-        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-            echo "Error: Cannot find observation directory."
+        if [[ ! -d ${base_dir}/${obsid} ]]; then
+            echo "ERROR :: Observation directory does not exist: ${base_dir}/${obsid}"
             exit 1
         fi
 
-        # Ensure that there is a directory for the beamformed data
-        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${source}/psrfits_${params.duration}s"
-        if [[ ! -d \$psr_dir ]]; then
-            mkdir -p -m 771 \$psr_dir
-        fi
-
-        # Move any existing beamformed data into a subdirectory
-        old_files=\$(find \$psr_dir -type f)
-        if [[ -n \$old_files ]]; then
-            archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
-            mkdir -p -m 771 \$archive
-            echo \$old_files | xargs -n1 mv -t \$archive
-        fi
-        """
-    } else if ( params.vdif ) {
-        """
-        if [[ ! -d ${params.vcs_dir}/${params.obsid} ]]; then
-            echo "Error: Cannot find observation directory."
+        if [[ ! -d ${base_dir}/${obsid}/combined ]]; then
+            echo "ERROR :: Data directory does not exist: ${base_dir}/${obsid}/combined"
             exit 1
         fi
 
-        # Ensure that there is a directory for the beamformed data
-        psr_dir="${params.vcs_dir}/${params.obsid}/pointings/${source}/vdif_${params.duration}s"
-        if [[ ! -d \$psr_dir ]]; then
-            mkdir -p -m 771 \$psr_dir
+        data_dir="${base_dir}/${obsid}/combined"
+        pointings_dir="${base_dir}/${obsid}/pointings"
+        source_dir="\${pointings_dir}/${source}"
+
+        psrfits_dir="\${source_dir}/psrfits_${duration}s"
+        if [[ ! -d \$psrfits_dir ]]; then
+            mkdir -p -m 771 \$psrfits_dir
+        fi
+        old_psrfits_files=\$(find \$psrfits_dir -type f)
+        if [[ -n \$old_psrfits_files ]]; then
+            psrfits_archive="\${psrfits_dir}/beamformed_data_archived_\$(date +%s)"
+            mkdir -p -m 771 \$psrfits_archive
+            echo \$old_psrfits_files | xargs -n1 mv -t \$psrfits_archive
         fi
 
-        # Move any existing beamformed data into a subdirectory
-        old_files=\$(find \$psr_dir -type f)
-        if [[ -n \$old_files ]]; then
-            archive="\${psr_dir}/beamformed_data_archived_\$(date +%s)"
-            mkdir -p -m 771 \$archive
-            echo \$old_files | xargs -n1 mv -t \$archive
+        vdif_dir="\${source_dir}/vdif_${duration}s"
+        if [[ ! -d \$vdif_dir ]]; then
+            mkdir -p -m 771 \$vdif_dir
+        fi
+        old_vdif_files=\$(find \$vdif_dir -type f)
+        if [[ -n \$old_vdif_files ]]; then
+            vdif_archive="\${vdif_dir}/beamformed_data_archived_\$(date +%s)"
+            mkdir -p -m 771 \$vdif_archive
+            echo \$old_vdif_files | xargs -n1 mv -t \$vdif_archive
+        fi
+        """
+    } else if ( do_fits ) {
+        """
+        if [[ ! -d ${base_dir} ]]; then
+            echo "ERROR :: Base directory does not exist: ${base_dir}"
+            exit 1
+        fi
+
+        if [[ ! -d ${base_dir}/${obsid} ]]; then
+            echo "ERROR :: Observation directory does not exist: ${base_dir}/${obsid}"
+            exit 1
+        fi
+
+        if [[ ! -d ${base_dir}/${obsid}/combined ]]; then
+            echo "ERROR :: Data directory does not exist: ${base_dir}/${obsid}/combined"
+            exit 1
+        fi
+
+        data_dir="${base_dir}/${obsid}/combined"
+        pointings_dir="${base_dir}/${obsid}/pointings"
+        source_dir="\${pointings_dir}/${source}"
+
+        psrfits_dir="\${source_dir}/psrfits_${duration}s"
+        if [[ ! -d \$psrfits_dir ]]; then
+            mkdir -p -m 771 \$psrfits_dir
+        fi
+        old_psrfits_files=\$(find \$psrfits_dir -type f)
+        if [[ -n \$old_psrfits_files ]]; then
+            psrfits_archive="\${psrfits_dir}/beamformed_data_archived_\$(date +%s)"
+            mkdir -p -m 771 \$psrfits_archive
+            echo \$old_psrfits_files | xargs -n1 mv -t \$psrfits_archive
+        fi
+        """
+    } else if ( do_vdif ) {
+        """
+        if [[ ! -d ${base_dir} ]]; then
+            echo "ERROR :: Base directory does not exist: ${base_dir}"
+            exit 1
+        fi
+
+        if [[ ! -d ${base_dir}/${obsid} ]]; then
+            echo "ERROR :: Observation directory does not exist: ${base_dir}/${obsid}"
+            exit 1
+        fi
+
+        if [[ ! -d ${base_dir}/${obsid}/combined ]]; then
+            echo "ERROR :: Data directory does not exist: ${base_dir}/${obsid}/combined"
+            exit 1
+        fi
+
+        data_dir="${base_dir}/${obsid}/combined"
+        pointings_dir="${base_dir}/${obsid}/pointings"
+        source_dir="\${pointings_dir}/${source}"
+
+        vdif_dir="\${source_dir}/vdif_${duration}s"
+        if [[ ! -d \$vdif_dir ]]; then
+            mkdir -p -m 771 \$vdif_dir
+        fi
+        old_vdif_files=\$(find \$vdif_dir -type f)
+        if [[ -n \$old_vdif_files ]]; then
+            vdif_archive="\${vdif_dir}/beamformed_data_archived_\$(date +%s)"
+            mkdir -p -m 771 \$vdif_archive
+            echo \$old_vdif_files | xargs -n1 mv -t \$vdif_archive
         fi
         """
     }
 }
 
 process get_calibration_solution {
-    tag "${source}" instanceof String ? "${source}" : 'multi-psr'
-
     input:
-    val(source)
+    val(obsid)
+    val(calid)
 
     output:
-    tuple val(source), env(obsmeta), env(calmeta), env(calsol)
+    env(obsmeta), emit: obsmeta
+    env(calmeta), emit: calmeta
+    env(calsol), emit: calsol
 
     script:
     if ( params.use_default_sol ) {
         """
-        if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits ]]; then
+        if [[ ! -r ${params.vcs_dir}/${obsid}/${obsid}.metafits ]]; then
             echo "VCS observation metafits not found. Exiting."
             exit 1
         fi
 
-        if [[ ! -r ${params.calsol_dir}/${params.obsid}/${params.calid}/${params.calid}.metafits ]]; then
+        if [[ ! -r ${params.calsol_dir}/${obsid}/${calid}/${calid}.metafits ]]; then
             echo "Calibration observation metafits not found. Exiting."
             exit 1
         fi
 
-        if [[ ! -e ${params.calsol_dir}/${params.obsid}/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
+        if [[ ! -e ${params.calsol_dir}/${obsid}/${calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
             echo "Default calibration solution not found. Exiting."
             exit 1
         fi
 
-        obsmeta="${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits"
-        calmeta="${params.calsol_dir}/${params.obsid}/${params.calid}/${params.calid}.metafits"
-        calsol="${params.calsol_dir}/${params.obsid}/${params.calid}/hyperdrive/hyperdrive_solutions.bin"
+        obsmeta="${params.vcs_dir}/${obsid}/${obsid}.metafits"
+        calmeta="${params.calsol_dir}/${obsid}/${calid}/${calid}.metafits"
+        calsol="${params.calsol_dir}/${obsid}/${calid}/hyperdrive/hyperdrive_solutions.bin"
         """
     } else {
         """
-        if [[ ! -r ${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits ]]; then
+        if [[ ! -r ${params.vcs_dir}/${obsid}/${obsid}.metafits ]]; then
             echo "VCS observation metafits not found. Exiting."
             exit 1
         fi
 
-        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits ]]; then
+        if [[ ! -r ${params.vcs_dir}/${obsid}/cal/${calid}/${calid}.metafits ]]; then
             echo "Calibration observation metafits not found. Exiting."
             exit 1
         fi
 
-        if [[ ! -r ${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
+        if [[ ! -r ${params.vcs_dir}/${obsid}/cal/${calid}/hyperdrive/hyperdrive_solutions.bin ]]; then
             echo "Calibration solution not found. Exiting."
             exit 1
         fi
 
-        obsmeta="${params.vcs_dir}/${params.obsid}/${params.obsid}.metafits"
-        calmeta="${params.vcs_dir}/${params.obsid}/cal/${params.calid}/${params.calid}.metafits"
-        calsol="${params.vcs_dir}/${params.obsid}/cal/${params.calid}/hyperdrive/hyperdrive_solutions.bin"
+        obsmeta="${params.vcs_dir}/${obsid}/${obsid}.metafits"
+        calmeta="${params.vcs_dir}/${obsid}/cal/${calid}/${calid}.metafits"
+        calsol="${params.vcs_dir}/${obsid}/cal/${calid}/hyperdrive/hyperdrive_solutions.bin"
         """
     }
 }
 
 process parse_pointings {
     input:
-    tuple val(RAJ), val(DECJ), val(obsmeta), val(calmeta), val(calsol)
+    tuple val(RAJ), val(DECJ)
+    val(calmeta)
+    val(flagged_tiles)
 
     output:
-    tuple env(pointing_label), val(obsmeta), val(calmeta), val(calsol), path('pointings.txt'), path('flagged_tiles.txt')
+    path('pointings.txt'), emit: pointings
+    path('flagged_tiles.txt'), emit: flagged_tiles
 
     script:
     if ( params.convert_rts_flags ) {
@@ -235,7 +280,7 @@ process parse_pointings {
         echo "${RAJ} ${DECJ}" | tee pointings.txt
 
         # Write the tile flags to file
-        echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
+        echo "${flagged_tiles}" | tee flagged_tiles_rts.txt
         ${params.convert_flags_script} \\
             -m ${calmeta} \\
             -i flagged_tiles_rts.txt \\
@@ -250,7 +295,7 @@ process parse_pointings {
         echo "${RAJ} ${DECJ}" | tee pointings.txt
 
         # Write the tile flags to file
-        echo "${params.flagged_tiles}" | tee flagged_tiles.txt
+        echo "${flagged_tiles}" | tee flagged_tiles.txt
         """
     }
 }
@@ -261,10 +306,13 @@ process get_pointings {
     tag "${psr}"
 
     input:
-    tuple val(psr), val(obsmeta), val(calmeta), val(calsol)
+    val(psr)
+    val(calmeta)
+    val(flagged_tiles)
 
     output:
-    tuple val(psr), val(obsmeta), val(calmeta), val(calsol), path('pointings.txt'), path('flagged_tiles.txt')
+    path('pointings.txt'), emit: pointings
+    path('flagged_tiles.txt'), emit: flagged_tiles
 
     script:
     if ( params.convert_rts_flags ) {
@@ -280,10 +328,10 @@ process get_pointings {
         echo "\${RAJ} \${DECJ}" | tee pointings.txt
 
         # Write the tile flags to file
-        echo "${params.flagged_tiles}" | tee flagged_tiles.txt
+        echo "${flagged_tiles}" | tee flagged_tiles.txt
 
         # Write the tile flags to file
-        echo "${params.flagged_tiles}" | tee flagged_tiles_rts.txt
+        echo "${flagged_tiles}" | tee flagged_tiles_rts.txt
         ${params.convert_flags_script} \\
             -m ${calmeta} \\
             -i flagged_tiles_rts.txt \\
@@ -302,7 +350,7 @@ process get_pointings {
         echo "\${RAJ} \${DECJ}" | tee pointings.txt
 
         # Write the tile flags to file
-        echo "${params.flagged_tiles}" | tee flagged_tiles.txt
+        echo "${flagged_tiles}" | tee flagged_tiles.txt
         """
 
     }
@@ -321,28 +369,38 @@ process vcsbeam {
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
 
-    publishDir "${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s", mode: 'move', enabled: publish_vdif
+    publishDir "${source_dir}/vdif_${duration}s", mode: 'move', enabled: publish_vdif
 
     input:
-    tuple val(psr), val(obsmeta), val(calmeta), val(calsol), val(pointings), val(flagged_tiles)
+    val(psr)
+    val(source_dir)
+    val(data_dir)
+    val(duration)
+    val(begin)
+    val(low_chan)
+    val(obs_metafits)
+    val(cal_metafits)
+    val(cal_solution)
+    val(flagged_tiles)
+    val(pointings)
 
     output:
-    tuple val(psr), path('*.{vdif,hdr}')
+    path('*.{vdif,hdr}')
 
     script:
     """
     make_mwa_tied_array_beam -V
     echo "\$(date): Executing make_mwa_tied_array_beam."
     srun make_mwa_tied_array_beam \\
-        -m ${obsmeta} \\
-        -b ${params.begin} \\
-        -T ${params.duration} \\
-        -f ${params.low_chan} \\
-        -d ${params.vcs_dir}/${params.obsid}/combined \\
+        -m ${obs_metafits} \\
+        -b ${begin} \\
+        -T ${duration} \\
+        -f ${low_chan} \\
+        -d ${data_dir} \\
         -P ${pointings} \\
         -F ${flagged_tiles} \\
-        -c ${calmeta} \\
-        -C ${calsol} \\
+        -c ${cal_metafits} \\
+        -C ${cal_solution} \\
         -R NONE -U 0,0 -O -X --smart -v
     echo "\$(date): Finished executing make_mwa_tied_array_beam."
     """
@@ -364,13 +422,16 @@ process get_ephemeris {
     }
 
     input:
-    tuple val(psr), val(vcsbeam_files)
+    val(psr)
+    val(vcsbeam_files)
+    val(ephemeris_dir)
+    val(force_psrcat)
 
     output:
-    tuple val(psr), val(vcsbeam_files), path("${psr}.par")
+    path("${psr}.par")
 
     script:
-    if ( params.force_psrcat ) {
+    if ( force_psrcat ) {
         """
         if [[ -z ${psr} ]]; then
             echo "Error: Pulsar name string is blank."
@@ -410,9 +471,9 @@ process get_ephemeris {
 
         par_file=${psr}.par
 
-        if [[ -r ${params.ephemeris_dir}/\$par_file ]]; then
+        if [[ -r ${ephemeris_dir}/\$par_file ]]; then
             # Preference is to use MeerTime ephemeris
-            cp ${params.ephemeris_dir}/\$par_file \$par_file
+            cp ${ephemeris_dir}/\$par_file \$par_file
         else
             # Otherwise, use ATNF catalogue
             echo "MeerKAT ephemeris not found. Using PSRCAT."
@@ -457,10 +518,17 @@ process dspsr {
     maxRetries 2
 
     input:
-    tuple val(psr), path(vcsbeam_files), path(par_file)
+    val(psr)
+    val(source_dir)
+    val(duration)
+    val(nbin)
+    val(fine_chan)
+    val(tint)
+    path(vcsbeam_files)
+    path(par_file)
 
     output:
-    val(psr)
+    val(true)
 
     script:
     """
@@ -477,11 +545,11 @@ process dspsr {
     if [[ -z \$spin_period_ms ]]; then
         echo "Error: Cannot locate spin period."
         exit 1
-    elif (( \$(echo "\$spin_period_ms < ${params.nbin}/20" | bc -l) )); then
+    elif (( \$(echo "\$spin_period_ms < ${bin}/20" | bc -l) )); then
         # Set nbins to 20x the period in ms, and always round down
         nbin=\$(printf "%.0f" \$(echo "scale=0; 20 * \$spin_period_ms - 0.5" | bc))
     else
-        nbin=${params.nbin}
+        nbin=${nbin}
     fi
 
     for datafile_hdr in \$(cat headers.txt); do
@@ -501,8 +569,8 @@ process dspsr {
                     -E ${par_file} \\
                     -b \$nbin \\
                     -U \$size_mb \\
-                    -F ${params.fine_chan}:D \\
-                    -L ${params.tint} -A \\
+                    -F ${fine_chan}:D \\
+                    -L ${tint} -A \\
                     -O \$outfile \\
                     \$new_datafile_hdr
             fi
@@ -513,7 +581,7 @@ process dspsr {
     find *.ar | xargs -n1 basename > channel_archives.txt
 
     # The name of the combined archive
-    base_name=${psr}_bins\${nbin}_fchans${params.fine_chan}_tint${params.tint}
+    base_name=${psr}_bins\${nbin}_fchans${fine_chan}_tint${tint}
 
     # Stitch together channels and delete individual channel archives
     psradd -R -o \${base_name}.ar *.ar
@@ -528,7 +596,7 @@ process dspsr {
     pav -Tp -C -Gd -g \${base_name}_frequency_phase.png/png \${base_name}.ar
     pav -Fp -C -Yd -g \${base_name}_time_phase.png/png \${base_name}.ar
 
-    dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s
+    dataproduct_dir=${source_dir}/vdif_${duration}s
     if [[ ! -d \${dataproduct_dir}/dspsr ]]; then
         mkdir -p -m 771 \${dataproduct_dir}/dspsr
     fi
@@ -563,7 +631,15 @@ process prepfold {
     maxRetries 1
 
     input:
-    tuple val(psr), path(vcsbeam_files), path(par_file)
+    val(psr)
+    val(source_dir)
+    val(duration)
+    val(nbin)
+    val(nsub)
+    val(npart)
+    val(nosearch)
+    path(vcsbeam_files)
+    path(par_file)
 
     script:
     """
@@ -575,7 +651,7 @@ process prepfold {
     fi
 
     nosearch_flag=""
-    if [[ "${params.nosearch_prepfold}" == "true" ]]; then
+    if [[ "${nosearch}" == "true" ]]; then
         nosearch_flag="-nosearch"
     fi
 
@@ -599,11 +675,11 @@ process prepfold {
     if [[ -z \$spin_period_ms ]]; then
         echo "Error: Cannot locate spin period."
         exit 1
-    elif (( \$(echo "\$spin_period_ms < ${params.nbin}/20" | bc -l) )); then
+    elif (( \$(echo "\$spin_period_ms < ${nbin}/20" | bc -l) )); then
         # Set nbins to 20x the period in ms, and always round down
         nbin=\$(printf "%.0f" \$(echo "scale=0; 20 * \$spin_period_ms - 0.5" | bc))
     else
-        nbin=${params.nbin}
+        nbin=${nbin}
     fi
 
     prepfold \\
@@ -614,13 +690,13 @@ process prepfold {
         -noscales \\
         -nooffsets \\
         -n \$nbin \\
-        -nsub ${params.nsub} \\
-        -npart ${params.npart} \\
+        -nsub ${nsub} \\
+        -npart ${npart} \\
         \$bin_flag \\
         \$nosearch_flag \\
         \$(cat fitsfiles.txt)
 
-    dataproduct_dir=${params.vcs_dir}/${params.obsid}/pointings/${psr}/psrfits_${params.duration}s
+    dataproduct_dir=${source_dir}/psrfits_${duration}s
     if [[ ! -d \${dataproduct_dir}/prepfold ]]; then
         mkdir -p -m 771 \${dataproduct_dir}/prepfold
     fi
@@ -649,10 +725,16 @@ process pdmp {
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 1
-    publishDir "${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s/dspsr/pdmp", mode: 'move'
+
+    publishDir "${source_dir}/vdif_${duration}s/dspsr/pdmp", mode: 'move'
 
     input:
+    val(ready)
     val(psr)
+    val(source_dir)
+    val(duration)
+    val(pdmp_mc)
+    val(pdmp_ms)
 
     output:
     path('*.png')
@@ -661,7 +743,7 @@ process pdmp {
 
     script:
     """
-    base_dir="${params.vcs_dir}/${params.obsid}/pointings/${psr}/vdif_${params.duration}s/dspsr"
+    base_dir="${source_dir}/vdif_${duration}s/dspsr"
     find \$base_dir -type f -name "*.ar" -exec ln -s '{}' \\;
     ar_file=\$(find *.ar)
     if [[ \$(echo \$ar_file | wc -l) -gt 1 ]]; then
@@ -672,13 +754,13 @@ process pdmp {
     nsubint=\$(psredit -Qc nsubint \$ar_file | awk '{print \$2}')
 
     mc_flag=""
-    if [ ${params.pdmp_mc} -lt \$nchan -a \$((\$nchan % ${params.pdmp_mc})) -eq 0 ]; then
-        mc_flag="-mc ${params.pdmp_mc}"
+    if [ ${pdmp_mc} -lt \$nchan -a \$((\$nchan % ${pdmp_mc})) -eq 0 ]; then
+        mc_flag="-mc ${pdmp_mc}"
     fi
 
     ms_flag=""
-    if [ ${params.pdmp_ms} -lt \$nsubint -a \$((\$nsubint % ${params.pdmp_ms})) -eq 0 ]; then
-        ms_flag="-ms ${params.pdmp_ms}"
+    if [ ${pdmp_ms} -lt \$nsubint -a \$((\$nsubint % ${pdmp_ms})) -eq 0 ]; then
+        ms_flag="-ms ${pdmp_ms}"
     fi
 
     pdmp \\
@@ -708,10 +790,11 @@ process create_tarball {
     time 1.hour
 
     input:
-    tuple val(psr), path(vcsbeam_files)
+    val(psr)
+    path(vcsbeam_files)
 
     output:
-    tuple val(psr), path('*.tar')
+    path('*.tar')
 
     script:
     """
@@ -743,7 +826,8 @@ process copy_to_acacia {
     errorStrategy 'ignore'
 
     input:
-    tuple val(psr), path(tar_file)
+    val(psr)
+    path(tar_file)
 
     script:
     """
@@ -837,77 +921,4 @@ process copy_to_acacia {
     echo "Done"
     exit 0
     """
-}
-
-// Beamform and fold on catalogued pulsar in VDIF/singlepixel mode
-workflow spsr {
-    take:
-        // Channel of [source, obsmeta, calmeta, calsol]
-        job_info
-    main:
-        // Beamform and fold each pulsar
-        if ( params.nosearch_pdmp ) {
-            get_pointings(job_info)
-                | vcsbeam
-                | get_ephemeris
-                | dspsr
-        } else {
-            get_pointings(job_info)
-                | vcsbeam
-                | get_ephemeris
-                | dspsr
-                | pdmp
-        }
-}
-
-// Beamform on pointing in VDIF/singlepixel mode
-workflow spt {
-    take:
-        // Channel of [source, obsmeta, calmeta, calsol]
-        job_info
-    main:
-        if ( params.acacia_prefix_base ) {
-            // Beamform on each pointing and copy to Acacia
-            job_info
-                | map { [ it[0].split('_')[0], it[0].split('_')[1], it[1], it[2], it[3] ] }
-                | parse_pointings
-                | vcsbeam
-                | create_tarball
-                | copy_to_acacia
-        } else {
-            // Beamform on each pointing
-            job_info
-                | map { [ it[0].split('_')[0], it[0].split('_')[1], it[1], it[2], it[3] ] }
-                | parse_pointings
-                | vcsbeam
-        }
-}
-
-// Fold on catalogued pulsar with dspsr and search with pdmp
-workflow dspsr_wf {
-    take:
-        // Channel of individual pulsar Jnames
-        psrs
-    main:
-        if ( params.nosearch_pdmp ) {
-            locate_vdif_files(psrs)
-                | get_ephemeris
-                | dspsr
-        } else {
-            locate_vdif_files(psrs)
-                | get_ephemeris
-                | dspsr
-                | pdmp
-        }
-}
-
-// Fold on catalogued pulsar with prepfold
-workflow prepfold_wf {
-    take:
-        // Channel of individual pulsar Jnames
-        psrs
-    main:
-        locate_fits_files(psrs)
-            | get_ephemeris
-            | prepfold
 }
