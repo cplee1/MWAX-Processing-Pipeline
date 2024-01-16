@@ -1,6 +1,7 @@
 // Processes
 include { parse_pointings        } from '../modules/multipixel_module'
 include { get_pointings          } from '../modules/multipixel_module'
+include { combine_pointings      } from '../modules/multipixel_module'
 include { vcsbeam                } from '../modules/multipixel_module'
 include { locate_psrfits_files   } from '../modules/singlepixel_module'
 include { get_ephemeris          } from '../modules/singlepixel_module'
@@ -17,6 +18,7 @@ workflow process_psrfits {
     duration
     begin
     low_chan
+    flagged_tiles
     obs_metafits
     cal_metafits
     cal_solution
@@ -36,13 +38,11 @@ workflow process_psrfits {
             parse_pointings (
                 source.split('_')
             )
-            .out
             .set { pointing_files }
         } else {
             get_pointings (
                 source
             )
-            .out
             .set { pointing_files }
         }
         combine_pointings(
@@ -67,6 +67,7 @@ workflow process_psrfits {
     }
     if ( ! is_pointing ) {
         locate_psrfits_files (
+            vcsbeam.out,
             source,
             source_dir,
             duration

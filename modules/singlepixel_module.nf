@@ -49,6 +49,7 @@ process locate_psrfits_files {
     tag "${source}"
 
     input:
+    val(ready)
     val(source)
     val(source_dir)
     val(duration)

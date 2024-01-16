@@ -19,6 +19,7 @@ workflow process_vdif {
     duration
     begin
     low_chan
+    flagged_tiles
     obs_metafits
     cal_metafits
     cal_solution
@@ -41,7 +42,6 @@ workflow process_vdif {
             source_dir,
             duration
         )
-        .out
         .set { vcsbeam_files }
     } else {
         if ( is_pointing ) {
@@ -50,7 +50,6 @@ workflow process_vdif {
                 cal_metafits,
                 flagged_tiles
             )
-            .out
             .set { vcsbeam_input }
         } else {
             get_pointings (
@@ -58,7 +57,6 @@ workflow process_vdif {
                 cal_metafits,
                 flagged_tiles
             )
-            .out
             .set { vcsbeam_input }
         }
         vcsbeam (
@@ -74,7 +72,6 @@ workflow process_vdif {
             vcsbeam_input.flagged_tiles,
             vcsbeam_input.pointings
         )
-        .out
         .set { vcsbeam_files }
     }
     if ( is_pointing ) {

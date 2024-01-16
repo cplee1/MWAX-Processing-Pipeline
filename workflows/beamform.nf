@@ -8,6 +8,39 @@ include { process_vdif       } from '../subworkflows/process_vdif'
 
 def is_pointing = params.psrs != null ? false : true
 
+def round_down_time_chunk(time_sec) {
+    if (!(time_sec instanceof Number)) {
+        throw new IllegalArgumentException("Time must be a number")
+    }
+    def new_time = (time_sec / 8).toInteger() * 8
+
+    return new_time
+}
+
+def round_up_time_chunk(time_sec) {
+    if (!(time_sec instanceof Number)) {
+        throw new IllegalArgumentException("Time must be a number")
+    }
+    def new_time = ((time_sec / 8).toInteger() + 1) * 8
+
+    return new_time
+}
+
+def compute_duration(obsid, offset, duration) {
+    if (!(obsid instanceof Number)) {
+        throw new IllegalArgumentException("Obs ID must be a number")
+    }
+    if (!(offset instanceof Number)) {
+        throw new IllegalArgumentException("Offset must be a number")
+    }
+    if (!(duration instanceof Number)) {
+        throw new IllegalArgumentException("Duration must be a number")
+    }
+    def start_time = obsid + offset
+
+    return round_down_time_chunk(start_time) + round_up_time_chunk(duration) - 8
+}
+
 workflow beamform {
     // Create channel of sources (pulsars or pointings)
     if ( params.psrs != null ) {
@@ -33,6 +66,7 @@ workflow beamform {
         true,
         params.fits,
         params.vdif,
+        params.vcs_dir,
         params.obsid,
         sources,
         compute_duration(
@@ -63,6 +97,7 @@ workflow beamform {
             ),
             params.begin,
             params.low_chan,
+            params.flagged_tiles,
             get_calibration_solution.out.obsmeta,
             get_calibration_solution.out.calmeta,
             get_calibration_solution.out.calsol,
@@ -90,6 +125,7 @@ workflow beamform {
             ),
             params.begin,
             params.low_chan,
+            params.flagged_tiles,
             get_calibration_solution.out.obsmeta,
             get_calibration_solution.out.calmeta,
             get_calibration_solution.out.calsol,
