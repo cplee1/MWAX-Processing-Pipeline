@@ -9,8 +9,6 @@ process asvo_vcs_download {
     
     tag "${obsid}"
 
-    shell '/bin/bash', '-veu'
-
     time 2.day
     maxRetries 5
 
@@ -27,20 +25,23 @@ process asvo_vcs_download {
 
     input:
     val(obsid)
+    val(offset)
+    val(duration)
 
     output:
-    tuple env(jobid), env(fpath), env(mode)
+    env(jobid), emit: jobid
+    env(fpath), emit: asvo_path
+    val('vcs'), emit: mode
 
     script:
     """
     export MWA_ASVO_API_KEY="${params.asvo_api_key}"
-    mode=vcs
 
     # Submit job and supress failure if job already exists
     ${params.giant_squid} submit-volt -v -w \\
         --delivery astro \\
-        --offset ${params.offset} \\
-        --duration ${params.duration} \\
+        --offset ${offset} \\
+        --duration ${duration} \\
         ${obsid} \\
         || true
 
@@ -67,8 +68,6 @@ process asvo_vis_download {
     
     tag "${obsid}"
 
-    shell '/bin/bash', '-veu'
-
     time 1.day
     maxRetries 5
 
@@ -87,12 +86,13 @@ process asvo_vis_download {
     val(obsid)
 
     output:
-    tuple env(jobid), env(fpath), env(mode)
+    env(jobid), emit: jobid
+    env(fpath), emit: asvo_path
+    val('vis'), emit: mode
 
     script:
     """
     export MWA_ASVO_API_KEY="${params.asvo_api_key}"
-    mode=vis
 
     # Submit job and supress failure if job already exists
     ${params.giant_squid} submit-vis -v -w \\
@@ -133,35 +133,36 @@ process check_asvo_job_files {
     }
 
     input:
-    tuple val(jobid), val(fpath), val(mode)
+    val(jobid)
+    val(asvo_path)
 
     output:
-    tuple val(jobid), val(fpath), env(obsid), val(mode)
+    env(obsid)
 
     script:
     """
     # Does the directory exist?
-    if [[ ! -d "${fpath}" ]]; then
+    if [[ ! -d "${asvo_path}" ]]; then
         echo "Error: ASVO job directory does not exist."
         exit 2
     fi
 
     # Is there data files in the directory?
-    if [[ \$(find ${fpath} -name "*.sub"  | wc -l) -lt 1 && \\
-          \$(find ${fpath} -name "*.dat"  | wc -l) -lt 1 && \\
-          \$(find ${fpath} -name "*.fits" | wc -l) -lt 1 ]]; then
+    if [[ \$(find ${asvo_path} -name "*.sub"  | wc -l) -lt 1 && \\
+          \$(find ${asvo_path} -name "*.dat"  | wc -l) -lt 1 && \\
+          \$(find ${asvo_path} -name "*.fits" | wc -l) -lt 1 ]]; then
         echo "Error: Cannot locate data files."
         exit 3
     fi
 
     # Is there a metafits file in the directory?
-    if [[ \$(find ${fpath} -name "*.metafits" | wc -l) != 1 ]]; then
+    if [[ \$(find ${asvo_path} -name "*.metafits" | wc -l) != 1 ]]; then
         echo "Error: Cannot locate metafits file."
         exit 4
     fi
 
     # Get the obsid
-    obsid=\$(find ${fpath} -name "*.metafits" | xargs -n1 basename -s ".metafits")
+    obsid=\$(find ${asvo_path} -name "*.metafits" | xargs -n1 basename -s ".metafits")
 
     if [[ \${#obsid} != 10 ]]; then
         echo "Error: The provided obs ID is not valid."
@@ -174,10 +175,10 @@ process check_obsid {
     tag "${obsid}"
 
     input:
-    tuple val(jobid), val(fpath), val(obsid), val(mode)
+    val(obsid)
 
     output:
-    tuple val(jobid), val(fpath), val(obsid), val(mode)
+    val(true)
 
     script:
     """
@@ -196,10 +197,15 @@ process check_obsid {
 }
 
 process move_data {
-    tag "${obsid}"
+    tag "${obsid_to_move}"
 
     input:
-    tuple val(jobid), val(fpath), val(obsid), val(mode)
+    val(ready)
+    val(base_dir)
+    val(asvo_path)
+    val(vcs_obsid)
+    val(obsid_to_move)
+    val(mode)
 
     output:
     val(true)
@@ -207,17 +213,17 @@ process move_data {
     script:
     if ( mode == 'vcs' ) {
     """
-        if [[ ! -d ${params.vcs_dir} ]]; then
+        if [[ ! -d ${base_dir} ]]; then
             echo "Error: VCS directory does not exist."
             exit 1
         fi
 
         # Create a directory to move files into
-        mkdir -p -m 771 ${params.vcs_dir}/${obsid}/combined
+        mkdir -p -m 771 ${base_dir}/${obsid_to_move}/combined
 
         # Move data
-        mv ${fpath}/*.sub ${params.vcs_dir}/${obsid}/combined
-        mv ${fpath}/*.metafits ${params.vcs_dir}/${obsid}
+        mv ${fpath}/*.sub ${base_dir}/${obsid_to_move}/combined
+        mv ${fpath}/*.metafits ${base_dir}/${obsid_to_move}
         
         # Delete the job directory
         if [[ -d ${fpath} ]]; then
@@ -233,16 +239,16 @@ process move_data {
         """
     } else if ( mode == 'vis' ) {
         """
-        if [[ ! -d ${params.vcs_dir} ]]; then
+        if [[ ! -d ${base_dir} ]]; then
             echo "Error: VCS directory does not exist."
             exit 1
         fi
 
         # Create a directory to move files into
-        mkdir -p -m 771 ${params.vcs_dir}/${params.obsid}/cal/${obsid}
+        mkdir -p -m 771 ${base_dir}/${vcs_obsid}/cal/${obsid_to_move}
 
         # Move data
-        mv ${fpath}/* ${params.vcs_dir}/${params.obsid}/cal/${obsid}
+        mv ${fpath}/* ${base_dir}/${vcs_obsid}/cal/${obsid_to_move}
 
         # Delete the job directory
         if [[ -d ${fpath} ]]; then
