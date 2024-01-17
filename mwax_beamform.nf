@@ -190,31 +190,26 @@ if ( params.help ) {
 include { beamform } from './workflows/beamform'
 
 workflow {
-    if ( ! params.obsid ) {
+    if (!params.obsid) {
         System.err.println("ERROR: Obs ID is not defined")
     }
-    if ( ! params.duration ) {
+    if (!params.duration) {
         System.err.println("ERROR: Observation duration not defined")
     }
-    if ( ! ( params.psrs || params.pointings || params.pointings_file ) ) {
+    if (!((!params.skip_bf && params.calid) || params.skip_bf)) {
+        System.err.println("ERROR: Calibrator obs ID is not defined")
+    }
+    if (!(params.psrs || params.pointings || params.pointings_file)) {
         System.err.println("ERROR: Pulsar(s) or pointing(s) not defined")
     }
-    if ( params.fits != true && params.vdif != true ) {
+    if (params.fits != true && params.vdif != true) {
         System.err.println("ERROR: File format not defined")
     }
-    if ( params.obsid && params.duration && ( params.psrs || params.pointings || params.pointings_file ) && ( params.fits == true || params.vdif == true ) ) {
-        if ( params.skip_bf ) {
-            bf()  // Dedisperse and fold
-        } else {
-            if ( ! params.calid ) {
-                System.err.println("ERROR: Cal ID is not defined")
-            }
-            if ( ! params.begin ) {
-                System.err.println("ERROR: Observation start GPS time is not defined")
-            }
-            if ( params.calid && params.begin ) {
-                beamform()  // Beamform, dedisperse, and fold
-            }
-        }
+    if (params.obsid && params.duration \
+        && ((!params.skip_bf && params.calid) || params.skip_bf) \
+        && (params.psrs || params.pointings || params.pointings_file) \
+        && (params.fits == true || params.vdif == true)) {
+        // Run the pipeline
+        beamform()
     }
 }
