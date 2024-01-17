@@ -546,7 +546,7 @@ process dspsr {
     if [[ -z \$spin_period_ms ]]; then
         echo "Error: Cannot locate spin period."
         exit 1
-    elif (( \$(echo "\$spin_period_ms < ${bin}/20" | bc -l) )); then
+    elif (( \$(echo "\$spin_period_ms < ${nbin}/20" | bc -l) )); then
         # Set nbins to 20x the period in ms, and always round down
         nbin=\$(printf "%.0f" \$(echo "scale=0; 20 * \$spin_period_ms - 0.5" | bc))
     else
