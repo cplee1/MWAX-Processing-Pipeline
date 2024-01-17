@@ -36,7 +36,7 @@ workflow process_vdif {
     nosearch
 
     main:
-    if ( skip_beamforming ) {
+    if (skip_beamforming) {
         locate_vdif_files (
             source,
             source_dir,
@@ -44,7 +44,7 @@ workflow process_vdif {
         )
         .set { vcsbeam_files }
     } else {
-        if ( is_pointing ) {
+        if (is_pointing) {
             parse_pointings (
                 source.split('_'),
                 cal_metafits,
@@ -74,7 +74,7 @@ workflow process_vdif {
         )
         .set { vcsbeam_files }
     }
-    if ( is_pointing ) {
+    if (is_pointing) {
         create_tarball (
             source,
             vcsbeam_files
@@ -100,7 +100,7 @@ workflow process_vdif {
             vcsbeam_files,
             get_ephemeris.out
         )
-        if ( ! nosearch ) {
+        if (!nosearch) {
             pdmp (
                 dspsr.out,
                 source,

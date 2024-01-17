@@ -33,8 +33,8 @@ workflow process_psrfits {
     nosearch
 
     main:
-    if ( ! skip_beamforming ) {
-        if ( is_pointing ) {
+    if (!skip_beamforming) {
+        if (is_pointing) {
             parse_pointings (
                 source.split('_')
             )
@@ -45,7 +45,7 @@ workflow process_psrfits {
             )
             .set { pointing_files }
         }
-        combine_pointings(
+        combine_pointings (
             pointing_files.collect(),
             cal_metafits,
             flagged_tiles
@@ -65,7 +65,7 @@ workflow process_psrfits {
             combine_pointings.out.pairs
         )
     }
-    if ( ! is_pointing ) {
+    if (!is_pointing) {
         locate_psrfits_files (
             vcsbeam.out,
             source,
