@@ -1,10 +1,8 @@
-// Script courtesy of Bradley Meyers
 process copy_to_acacia {
     label 'copy'
 
     tag "${psr}"
 
-    shell '/bin/bash', '-veu'
     time 2.hour
 
     // Nextflow doesn't see the Setonix job in the queue, so will exit
@@ -13,14 +11,17 @@ process copy_to_acacia {
 
     input:
     val(psr)
+    val(acacia_profile)
+    val(acacia_bucket)
+    val(acacia_prefix)
     path(tar_file)
 
     script:
     """
     # Defining variables that will hold the names related to your access, buckets and objects to be stored in Acacia
-    profileName="${params.acacia_profile}"
-    bucketName="${params.acacia_bucket}"
-    prefixPath="${params.acacia_prefix_base}/${params.obsid}"
+    profileName="${acacia_profile}"
+    bucketName="${acacia_bucket}"
+    prefixPath="${acacia_prefix}"
     fullPathInAcacia="\${profileName}:\${bucketName}/\${prefixPath}"  # Note the colon(:) when using rclone
 
     # Local storage variables

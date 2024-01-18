@@ -73,7 +73,7 @@ workflow PROCESS_PSRFITS {
     //
     if (!is_pointing) {
         LOCATE_PSRFITS_FILES (
-            vcsbeam.out,
+            VCSBEAM_MULTIPIXEL.out,
             source,
             source_dir,
             duration
