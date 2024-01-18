@@ -11,8 +11,6 @@ process VCSBEAM {
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
 
-    publishDir "${source_dir}/vdif_${duration}s", mode: 'move', enabled: publish_vdif
-
     input:
     val(psr)
     val(source_dir)

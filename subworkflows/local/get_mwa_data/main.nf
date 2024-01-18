@@ -15,6 +15,8 @@ include { MOVE_DATA            } from '../../../modules/local/move_data'
 workflow GET_MWA_DATA {
     take:
     obsid        //   integer: VCS obs ID
+    offset       //   integer: offset from start of observation in seconds
+    duration     //   integer: length of time to download in seconds
     calids       //    string: space separated list of calibrator obs IDs
     asvo_id_obs  //   integer: job ID for VCS obs download
     asvo_id_cals //    string: space separated list of job IDs for cal downloads
@@ -22,6 +24,8 @@ workflow GET_MWA_DATA {
     vcs_dir      // directory: user VCS directory
 
     main:
+
+    job_info = Channel.empty()
 
     //
     // Get VCS observation
@@ -31,9 +35,14 @@ workflow GET_MWA_DATA {
             .from(asvo_id_obs)
             .map { [ jobid, "${asvo_dir}/${jobid}", 'vcs' ] }
             .set { job_info_vcs }
-    } else {
-        ASVO_VCS_DOWNLOAD ( obsid )
-            .set { job_info_vcs }
+        job_info.mix(job_info_vcs)
+    } else if (obsid != null) {
+        ASVO_VCS_DOWNLOAD (
+            obsid,
+            offset,
+            duration
+        ).set { job_info_vcs }
+        job_info.mix(job_info_vcs)
     }
     
     //
@@ -44,9 +53,10 @@ workflow GET_MWA_DATA {
             .from(asvo_id_cals)
             .map { it instanceof String && it.matches('\\w+(\\s\\w+)+') ? it.split('\\s') : it }
             .flatten()
-            .map { [ jobid, "${asvo_dir}/${jobid}", 'vis' ] }
+            .map { tuple(jobid, "${asvo_dir}/${jobid}", 'vis') }
             .set { job_info_vis }
-    } else {
+        job_info.mix(job_info_vis)
+    } else if (calids != null) {
         Channel
             .from(calids)
             .map { it instanceof String && it.matches('\\w+(\\s\\w+)+') ? it.split('\\s') : it }
@@ -54,11 +64,8 @@ workflow GET_MWA_DATA {
             .set { calids }
         ASVO_VIS_DOWNLOAD ( calids )
             .set { job_info_vis }
+        job_info.mix(job_info_vis)
     }
-
-    job_info_vcs
-        .concat(job_info_vis)
-        .set { job_info }
 
     //
     // Check that data and metadata exist in the ASVO download directories

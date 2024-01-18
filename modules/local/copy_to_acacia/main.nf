@@ -1,4 +1,4 @@
-process copy_to_acacia {
+process COPY_TO_ACACIA {
     label 'copy'
 
     tag "${psr}"

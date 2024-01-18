@@ -21,9 +21,7 @@ process ASVO_VIS_DOWNLOAD {
     val(obsid)
 
     output:
-    env(jobid), emit: jobid
-    env(fpath), emit: asvo_path
-    val('vis'), emit: mode
+    tuple env(jobid), env(fpath), val('vis')
 
     script:
     """

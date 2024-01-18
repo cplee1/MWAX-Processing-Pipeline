@@ -2,15 +2,16 @@
 // Beamform and fold VCS pulsar observations in VDIF format
 //
 
-include { PARSE_POINTING    } from '../../../modules/local/parse_pointing'
-include { GET_POINTING      } from '../../../modules/local/get_pointing'
-include { VCSBEAM           } from '../../../modules/local/vcsbeam'
-include { LOCATE_VDIF_FILES } from '../../../modules/local/locate_vdif_files'
-include { CREATE_TARBALL    } from '../../../modules/local/create_tarball'
-include { COPY_TO_ACACIA    } from '../../../modules/local/copy_to_acacia'
-include { GET_EPHEMERIS     } from '../../../modules/local/get_ephemeris'
-include { DSPSR             } from '../../../modules/local/dspsr'
-include { PDMP              } from '../../../modules/local/pdmp'
+include { PARSE_POINTING        } from '../../../modules/local/parse_pointing'
+include { GET_POINTING          } from '../../../modules/local/get_pointing'
+include { VCSBEAM               } from '../../../modules/local/vcsbeam'
+include { PUBLISH_VCSBEAM_FILES } from '../../../modules/local/publish_vcsbeam_files'
+include { LOCATE_VDIF_FILES     } from '../../../modules/local/locate_vdif_files'
+include { CREATE_TARBALL        } from '../../../modules/local/create_tarball'
+include { COPY_TO_ACACIA        } from '../../../modules/local/copy_to_acacia'
+include { GET_EPHEMERIS         } from '../../../modules/local/get_ephemeris'
+include { DSPSR                 } from '../../../modules/local/dspsr'
+include { PDMP                  } from '../../../modules/local/pdmp'
 
 workflow PROCESS_VDIF {
     take:
@@ -40,32 +41,33 @@ workflow PROCESS_VDIF {
 
     main:
 
-    //
-    // Beamform on sources
-    //
     if (skip_beamforming) {
+        //
+        // Stage in the published beamformed files
+        //
         LOCATE_VDIF_FILES (
             source,
             source_dir,
             duration
-        )
-        .set { vcsbeam_files }
+        ).set { vcsbeam_files }
     } else {
+        //
+        // Beamform on sources
+        //
         if (is_pointing) {
             PARSE_POINTING (
-                source.split('_'),
+                source.map { tuple(it.split('_')) },
                 cal_metafits,
                 flagged_tiles
-            )
-            .set { vcsbeam_input }
+            ).set { vcsbeam_input }
         } else {
             GET_POINTING (
                 source,
                 cal_metafits,
                 flagged_tiles
-            )
-            .set { vcsbeam_input }
+            ).set { vcsbeam_input }
         }
+
         VCSBEAM (
             source,
             source_dir,
@@ -78,7 +80,7 @@ workflow PROCESS_VDIF {
             cal_solution,
             vcsbeam_input.flagged_tiles,
             vcsbeam_input.pointings
-        )
+        ).set { vcsbeam_files }
     }
 
     //
@@ -89,7 +91,7 @@ workflow PROCESS_VDIF {
             // Copy to <profile>/<bucket>/<prefix>/<source>.tar
             CREATE_TARBALL (
                 source,
-                VCSBEAM.out
+                vcsbeam_files
             )
             COPY_TO_ACACIA (
                 source,
@@ -98,11 +100,18 @@ workflow PROCESS_VDIF {
                 acacia_prefix,
                 CREATE_TARBALL.out
             )
+        } else if (!skip_beamforming) {
+            PUBLISH_VCSBEAM_FILES (
+                source,
+                source_dir,
+                duration,
+                vcsbeam_files
+            )
         }
     } else {
         GET_EPHEMERIS (
             source,
-            VCSBEAM.out,
+            vcsbeam_files,
             ephemeris_dir,
             force_psrcat
         )
@@ -113,7 +122,7 @@ workflow PROCESS_VDIF {
             nbin,
             fine_chan,
             tint,
-            VCSBEAM.out,
+            vcsbeam_files,
             GET_EPHEMERIS.out
         )
         if (!nosearch) {

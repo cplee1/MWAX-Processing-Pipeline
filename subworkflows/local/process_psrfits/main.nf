@@ -39,12 +39,22 @@ workflow PROCESS_PSRFITS {
 
     main:
 
-    //
-    // Beamform on sources
-    //
-    if (!skip_beamforming) {
+    if (skip_beamforming) {
+        //
+        // Stage in the published beamformed files
+        //
+        LOCATE_PSRFITS_FILES (
+            true,
+            source,
+            source_dir,
+            duration
+        ).set { vcsbeam_files }
+    } else {
+        //
+        // Beamform on sources
+        //
         if (is_pointing) {
-            PARSE_POINTINGS ( source.split('_') )
+            PARSE_POINTINGS ( source.map { tuple(it.split('_')) } )
                 .set { pointing_files }
         } else {
             GET_POINTINGS ( source )
@@ -71,17 +81,14 @@ workflow PROCESS_PSRFITS {
             COMBINE_POINTINGS.out.pointings,
             COMBINE_POINTINGS.out.pairs
         )
-    }
 
-    //
-    // Stage in the published beamformed files
-    //
-    LOCATE_PSRFITS_FILES (
-        VCSBEAM.out,
-        source,
-        source_dir,
-        duration
-    )
+        LOCATE_PSRFITS_FILES (
+            VCSBEAM.out,
+            source,
+            source_dir,
+            duration
+        ).set { vcsbeam_files }
+    }
 
     //
     // Fold and search (P/Pdot/DM) the beamformed data
@@ -91,7 +98,7 @@ workflow PROCESS_PSRFITS {
             // Copy to <profile>/<bucket>/<prefix>/<source>.tar
             CREATE_TARBALL (
                 source,
-                VCSBEAM.out
+                vcsbeam_files
             )
             COPY_TO_ACACIA (
                 source,
@@ -104,7 +111,7 @@ workflow PROCESS_PSRFITS {
     } else {
         GET_EPHEMERIS (
             source,
-            LOCATE_PSRFITS_FILES.out,
+            vcsbeam_files,
             ephemeris_dir,
             force_psrcat
         )
@@ -117,7 +124,7 @@ workflow PROCESS_PSRFITS {
             nsub,
             npart,
             nosearch,
-            LOCATE_PSRFITS_FILES.out,
+            vcsbeam_files,
             GET_EPHEMERIS.out
         )
     }

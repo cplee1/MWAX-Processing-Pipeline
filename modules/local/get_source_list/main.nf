@@ -9,14 +9,18 @@ process GET_SOURCE_LIST {
     publishDir "${cal_dir}/hyperdrive", mode: 'copy'
 
     input:
-    tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans), val(metafits)
-
+    val(ready)
+    tuple val(calid), val(source)
+    val(cal_dir)
+    val(src_catalogue)
+    val(models_dir)
+    
     output:
-    tuple val(calid), val(cal_dir), val(flagged_tiles), val(flagged_fine_chans), val(metafits), path('srclist.yaml')
+    path('srclist.yaml')
 
     script:
     """
-    if [[ ! -r ${params.src_catalogue} ]]; then
+    if [[ ! -r ${src_catalogue} ]]; then
         echo "Error: Source catalogue cannot be found."
         exit 1
     fi
@@ -26,7 +30,7 @@ process GET_SOURCE_LIST {
     hyperdrive srclist-by-beam \\
         --metafits ${metafits} \\
         --number 1000 \\
-        ${params.src_catalogue} \\
+        ${src_catalogue} \\
         \$srclist
 
     echo "Looking for specific source model."
@@ -34,17 +38,17 @@ process GET_SOURCE_LIST {
     if [[ -z \$specific_model ]]; then
         echo "No specific model found in lookup table."
         echo "Using catalogue sources."
-    elif [[ ! -r ${params.models_dir}/\$specific_model ]]; then
-        echo "Specific model found in lookup table does not exist: ${params.models_dir}/\${specific_model}"
+    elif [[ ! -r ${models_dir}/\$specific_model ]]; then
+        echo "Specific model found in lookup table does not exist: ${models_dir}/\${specific_model}"
         echo "Using catalogue sources."
     else
-        echo "Specific model found: ${params.models_dir}/\${specific_model}"
+        echo "Specific model found: ${models_dir}/\${specific_model}"
         echo "Converting model to yaml format."
         srclist=srclist_specific.yaml
         hyperdrive srclist-by-beam \\
-            --metafits ${metafits} \\
+            --metafits ${cal_dir}/${calid}/${calid}.metafits \\
             --number 1 \\
-            ${params.models_dir}/\$specific_model \\
+            ${models_dir}/\$specific_model \\
             \$srclist
         echo "Using specific source model."
     fi

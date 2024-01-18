@@ -120,21 +120,16 @@ if ( params.help ) {
     exit(0)
 }
 
-include { cal        } from './workflows/calibrate'
-include { cal_jobs   } from './workflows/calibrate'
+include { VCS_CAL } from './workflows/vcs_cal'
 
 workflow {
-    if ( params.cal_joblist ) {
-        cal_jobs("${launchDir}/${params.cal_joblist}") | view
-    } else {
-        if ( ! params.obsid ) {
-            System.err.println("ERROR: Obs ID is not defined")
-        }
-        if ( ! params.calibrators ) {
-            System.err.println("ERROR: Calibrator(s) are not defined")
-        }
-        if ( params.obsid && params.calibrators) {
-            cal(params.obsid) | view
-        }
+    if ( ! params.obsid ) {
+        System.err.println("ERROR: Obs ID is not defined")
+    }
+    if ( ! params.calibrators ) {
+        System.err.println("ERROR: Calibrator(s) are not defined")
+    }
+    if ( params.obsid && params.calibrators) {
+        VCS_CAL()
     }
 }

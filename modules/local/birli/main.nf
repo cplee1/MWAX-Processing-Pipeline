@@ -6,28 +6,27 @@ process BIRLI {
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 1
+    publishDir "${cal_dir}/${calid}", mode: 'copy'
 
     input:
-    tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans), val(metafits)
+    val(ready)
+    val(calid)
+    val(cal_dir)
+    val(dt)
+    val(df)
 
     output:
-    tuple val(calid), val(cal_dir), val(source), val(flagged_tiles), val(flagged_fine_chans), val(metafits)
+    val(true), emit:ready
+    path("${calid}_birli*.uvfits"), emit: uvfits
 
     script:
     """
-    if [[ -r ${cal_dir}/${calid}_birli.uvfits && ${params.force_birli} == 'false' ]]; then
-        echo "Birli files found. Skipping process."
-        exit 0
-    fi
-
     birli -V
     birli \\
-        --metafits ${metafits} \\
-        --avg-time-res ${params.dt} \\
-        --avg-freq-res ${params.df} \\
+        --metafits ${cal_dir}/${calid}/${calid}.metafits \\
+        --avg-time-res ${dt} \\
+        --avg-freq-res ${df} \\
         --uvfits-out ${calid}_birli.uvfits \\
-        ${cal_dir}/*ch???*.fits
-
-    cp ${calid}_birli.uvfits ${cal_dir}/${calid}_birli.uvfits
+        ${cal_dir}/${calid}/*ch???*.fits
     """
 }

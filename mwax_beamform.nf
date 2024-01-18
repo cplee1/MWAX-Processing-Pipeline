@@ -53,10 +53,10 @@ def help_message() {
         |   Frequency setup options:
         |   --low_chan <LOW_CHAN>
         |       Index of lowest coarse channel.
-        |       [default: ${params.low_chan}]
+        |       [no default]
         |   --num_chan <NUM_CHAN>
         |       Number of coarse channels to process.
-        |       [default: ${params.num_chan}]
+        |       [no default]
         |
         |   Tile flagging options:
         |   --flagged_tiles <FLAGGED_TILES>...
@@ -108,15 +108,15 @@ def help_message() {
         |   in VDIF format (i.e. single-beam mode).
         |   --acacia_profile <ACACIA_PROFILE>
         |       Profile to upload files to on Acacia.
-        |       [default: ${params.acacia_profile}]
+        |       [no default]
         |   --acacia_bucket <ACACIA_BUCKET>
         |       Bucket to upload files to on Acacia.
-        |       [default: ${params.acacia_bucket}]
+        |       [no default]
         |   --acacia_prefix_base <ACACIA_PREFIX_BASE>
         |       Path to the directory within the Acacia bucket where archived files
         |       will be uploaded to under subdirectories labelled by obs ID. If no input
         |       is provided, will not upload to Acacia.
-        |       [default: none]
+        |       [no default]
         |
         |   Pipeline options
         |   --help
@@ -187,7 +187,7 @@ if ( params.help ) {
     exit(0)
 }
 
-include { beamform } from './workflows/beamform'
+include { VCS_BF } from './workflows/vcs_bf'
 
 workflow {
     if (!params.obsid) {
@@ -199,6 +199,12 @@ workflow {
     if (!((!params.skip_bf && params.calid) || params.skip_bf)) {
         System.err.println("ERROR: Calibrator obs ID is not defined")
     }
+    if (!((!params.skip_bf && params.low_chan) || params.skip_bf)) {
+        System.err.println("ERROR: Lowest coarse channel is not defined")
+    }
+    if (!((!params.skip_bf && params.num_chan) || params.skip_bf)) {
+        System.err.println("ERROR: Number of coarse channels is not defined")
+    }
     if (!(params.psrs || params.pointings || params.pointings_file)) {
         System.err.println("ERROR: Pulsar(s) or pointing(s) not defined")
     }
@@ -207,9 +213,11 @@ workflow {
     }
     if (params.obsid && params.duration \
         && ((!params.skip_bf && params.calid) || params.skip_bf) \
+        && ((!params.skip_bf && params.low_chan) || params.skip_bf) \
+        && ((!params.skip_bf && params.num_chan) || params.skip_bf) \
         && (params.psrs || params.pointings || params.pointings_file) \
         && (params.fits == true || params.vdif == true)) {
         // Run the pipeline
-        beamform()
+        VCS_BF()
     }
 }
