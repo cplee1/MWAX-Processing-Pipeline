@@ -190,34 +190,62 @@ if ( params.help ) {
 include { VCS_BF } from './workflows/vcs_bf'
 
 workflow {
-    if (!params.obsid) {
-        System.err.println("ERROR: Obs ID is not defined")
-    }
-    if (!params.duration) {
-        System.err.println("ERROR: Observation duration not defined")
-    }
-    if (!((!params.skip_bf && params.calid) || params.skip_bf)) {
-        System.err.println("ERROR: Calibrator obs ID is not defined")
-    }
-    if (!((!params.skip_bf && params.low_chan) || params.skip_bf)) {
-        System.err.println("ERROR: Lowest coarse channel is not defined")
-    }
-    if (!((!params.skip_bf && params.num_chan) || params.skip_bf)) {
-        System.err.println("ERROR: Number of coarse channels is not defined")
-    }
-    if (!(params.psrs || params.pointings || params.pointings_file)) {
-        System.err.println("ERROR: Pulsar(s) or pointing(s) not defined")
-    }
-    if (params.fits != true && params.vdif != true) {
-        System.err.println("ERROR: File format not defined")
-    }
-    if (params.obsid && params.duration \
-        && ((!params.skip_bf && params.calid) || params.skip_bf) \
-        && ((!params.skip_bf && params.low_chan) || params.skip_bf) \
-        && ((!params.skip_bf && params.num_chan) || params.skip_bf) \
-        && (params.psrs || params.pointings || params.pointings_file) \
-        && (params.fits == true || params.vdif == true)) {
-        // Run the pipeline
-        VCS_BF()
+    if (params.download_only) {
+        if (params.obsid == null \
+            && params.calids == null \
+            && params.asvo_id_obs == null \
+            && params.asvo_id_cals == null) {
+            System.err.println("ERROR: No downloads requested")
+        } else {
+            if (params.obsid != null) {
+                if (params.duration == null) {
+                    System.err.println("ERROR: Observation duration not defined")
+                }
+                if (params.offset == null) {
+                    System.err.println("ERROR: Observation offset not defined")
+                }
+                if (params.duration != null && params.offset != null) {
+                    VCS_BF()
+                }
+            } else {
+                VCS_BF()
+            }
+            
+        }
+    } else {
+        if (params.obsid == null) {
+            System.err.println("ERROR: Obs ID is not defined")
+        }
+        if (params.duration == null) {
+            System.err.println("ERROR: Observation duration not defined")
+        }
+        if (params.offset == null) {
+            System.err.println("ERROR: Observation offset not defined")
+        }
+        if (!((!params.skip_bf && params.calid != null) || params.skip_bf)) {
+            System.err.println("ERROR: Calibrator obs ID is not defined")
+        }
+        if (!((!params.skip_bf && params.low_chan != null) || params.skip_bf)) {
+            System.err.println("ERROR: Lowest coarse channel is not defined")
+        }
+        if (!((!params.skip_bf && params.num_chan != null) || params.skip_bf)) {
+            System.err.println("ERROR: Number of coarse channels is not defined")
+        }
+        if (params.psrs == null && params.pointings == null && params.pointings_file == null) {
+            System.err.println("ERROR: Pulsar(s) or pointing(s) not defined")
+        }
+        if (params.fits != true && params.vdif != true) {
+            System.err.println("ERROR: File format not defined")
+        }
+        if (params.obsid != null \
+            && params.duration != null \
+            && params.offset != null \
+            && ((!params.skip_bf && params.calid != null) || params.skip_bf) \
+            && ((!params.skip_bf && params.low_chan != null) || params.skip_bf) \
+            && ((!params.skip_bf && params.num_chan != null) || params.skip_bf) \
+            && !(params.psrs == null && params.pointings == null && params.pointings_file == null) \
+            && (params.fits == true || params.vdif == true)) {
+            VCS_BF()
+        }
     }
 }
