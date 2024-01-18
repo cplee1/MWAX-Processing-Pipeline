@@ -5,8 +5,10 @@
 include { PARSE_POINTINGS      } from '../../../modules/local/parse_pointings'
 include { GET_POINTINGS        } from '../../../modules/local/get_pointings'
 include { COMBINE_POINTINGS    } from '../../../modules/local/combine_pointings'
-include { VCSBEAM_MULTIPIXEL   } from '../../../modules/local/vcsbeam_multipixel'
+include { VCSBEAM_MULTIPIXEL as VCSBEAM } from '../../../modules/local/vcsbeam_multipixel'
 include { LOCATE_PSRFITS_FILES } from '../../../modules/local/locate_psrfits_files'
+include { CREATE_TARBALL       } from '../../../modules/local/create_tarball'
+include { COPY_TO_ACACIA       } from '../../../modules/local/copy_to_acacia'
 include { GET_EPHEMERIS        } from '../../../modules/local/get_ephemeris'
 include { PREPFOLD             } from '../../../modules/local/prepfold'
 
@@ -31,6 +33,9 @@ workflow PROCESS_PSRFITS {
     nsub             //   integer: number of frequency subbands to use in search
     npart            //   integer: number of time integrations to use in search
     nosearch         //   boolean: whether to skip P/Pdot/DM search
+    acacia_profile   //    string: Acacia profile
+    acacia_bucket    //    string: Acacia bucket
+    acacia_prefix    //    string: Prefix of path within bucket
 
     main:
 
@@ -52,7 +57,7 @@ workflow PROCESS_PSRFITS {
             flagged_tiles
         )
 
-        VCSBEAM_MULTIPIXEL (
+        VCSBEAM (
             source.collect(),
             pointings_dir,
             data_dir,
@@ -69,16 +74,34 @@ workflow PROCESS_PSRFITS {
     }
 
     //
+    // Stage in the published beamformed files
+    //
+    LOCATE_PSRFITS_FILES (
+        VCSBEAM.out,
+        source,
+        source_dir,
+        duration
+    )
+
+    //
     // Fold and search (P/Pdot/DM) the beamformed data
     //
-    if (!is_pointing) {
-        LOCATE_PSRFITS_FILES (
-            VCSBEAM_MULTIPIXEL.out,
-            source,
-            source_dir,
-            duration
-        )
-
+    if (is_pointing) {
+        if (acacia_profile != null && acacia_bucket != null && acacia_prefix != null) {
+            // Copy to <profile>/<bucket>/<prefix>/<source>.tar
+            CREATE_TARBALL (
+                source,
+                VCSBEAM.out
+            )
+            COPY_TO_ACACIA (
+                source,
+                acacia_profile,
+                acacia_bucket,
+                acacia_prefix,
+                CREATE_TARBALL.out
+            )
+        }
+    } else {
         GET_EPHEMERIS (
             source,
             LOCATE_PSRFITS_FILES.out,
