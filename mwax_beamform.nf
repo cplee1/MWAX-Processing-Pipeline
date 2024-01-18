@@ -50,6 +50,26 @@ def help_message() {
         |           e.g. "19:23:48.53_-20:31:52.95\\n19:23:40.00_-20:31:50.00"
         |           [default: none]
         |
+        |   Download options:
+        |   --download
+        |       Download before beamforming
+        |   --download_only
+        |       Download and then exit the pipeline
+        |   --asvo_api_key <ASVO_API_KEY>
+        |       API key corresponding to the user's ASVO account.
+        |       [default: ${params.asvo_api_key}]
+        |   --calids <CALIDS>...
+        |       Space separated list of calibrator obs IDs to download.
+        |        Must enclose list in quotes.
+        |       [no default]
+        |   --asvo_id_obs <ASVO_ID_OBS>
+        |       ASVO job ID of the downloaded VCS observation.
+        |       [no default]
+        |   --asvo_id_cals <ASVO_ID_CALS>...
+        |       Space separated list of ASVO job IDs of the downloaded calibrator
+        |       observations. Must enclose list in quotes.
+        |       [no default]
+        |
         |   Frequency setup options:
         |   --low_chan <LOW_CHAN>
         |       Index of lowest coarse channel.
@@ -57,6 +77,10 @@ def help_message() {
         |   --num_chan <NUM_CHAN>
         |       Number of coarse channels to process.
         |       [no default]
+        |
+        |   Calibration solution options:
+        |   --use_default_sol
+        |       Fetch the calibration solution from the repository.
         |
         |   Tile flagging options:
         |   --flagged_tiles <FLAGGED_TILES>...
@@ -104,18 +128,16 @@ def help_message() {
         |       [default: ${params.pdmp_ms}]
         |
         |   Acacia upload options:
-        |   Note: These options are only available for beamforming on pointing coordinates
-        |   in VDIF format (i.e. single-beam mode).
+        |   These options are only available for beamforming on pointing coordinates
         |   --acacia_profile <ACACIA_PROFILE>
         |       Profile to upload files to on Acacia.
         |       [no default]
         |   --acacia_bucket <ACACIA_BUCKET>
         |       Bucket to upload files to on Acacia.
         |       [no default]
-        |   --acacia_prefix_base <ACACIA_PREFIX_BASE>
+        |   --acacia_prefix <ACACIA_PREFIX>
         |       Path to the directory within the Acacia bucket where archived files
-        |       will be uploaded to under subdirectories labelled by obs ID. If no input
-        |       is provided, will not upload to Acacia.
+        |       will be uploaded to.
         |       [no default]
         |
         |   Pipeline options
@@ -125,6 +147,12 @@ def help_message() {
         |       The Nextflow work directory. Delete the directory once the
         |       process is finished.
         |       [default: ${workDir}]
+        |   --asvo_dir <ASVO_DIR>
+        |       Path to where ASVO downloads are stored.
+        |       [default: ${params.asvo_dir}]
+        |   --vcs_dir <VCS_DIR>
+        |       Path to where VCS data files will be stored.
+        |       [default: ${params.vcs_dir}]
         |   --vcsbeam_version <VCSBEAM_VERSION>
         |       The vcsbeam module version to use.
         |       [default: ${params.vcsbeam_version}]
@@ -133,19 +161,24 @@ def help_message() {
         |
         |   Examples:
         |
-        |   1. Beamforming and folding on known pulsars with prepfold
-        |   mwax_beamform.nf --obsid 1372184672 --calid 1372184552 --begin 1372186776
-        |   --duration 592 --low_chan 109 --num_chan 24 --fits
-        |   --psrs "J2039-3616 J2124-3358 J2241-5236"
+        |   1. Downloading an observation then beamforming in PSRFITS format
+        |   mwax_beamform.nf --download --obsid 1372184672 --duration 592 --offset 0
+        |                    --low_chan 109 --num_chan 24 --fits
+        |                    --calid 1372184552 --use_default_sol
+        |                    --psrs "J2039-3616 J2124-3358 J2241-5236"
         |
-        |   2. Re-folding beamformed data
+        |   2. Same as (1) but using VDIF format and providing pointings
+        |   mwax_beamform.nf --download --obsid 1372184672 --duration 592 --offset 0
+        |                    --low_chan 109 --num_chan 24 --vdif
+        |                    --calid 1372184552 --use_default_sol
+        |                    --pointings "20:39:16.6_-36:16:17 21:24:43.84_-33:58:45.01"
+        |
+        |   3. Re-folding beamformed data
         |   mwax_beamform.nf --obsid 1372184672 --duration 592 --fits --skip_bf
-        |   --psrs "J2039-3616 J2124-3358 J2241-5236"
+        |                    --psrs "J2039-3616 J2124-3358 J2241-5236"
         |
-        |   3. Beamforming on pointings
-        |   mwax_beamform.nf --obsid 1372184672 --calid 1372184552 --begin 1372186776
-        |   --duration 592 --low_chan 109 --num_chan 24 --fits
-        |   --pointings "20:39:16.6_-36:16:17 21:24:43.846081_-33:58:45.01036"
+        |   4. Downloaded data without beamforming
+        |   mwax_beamform.nf --download_only --obsid 1372184672 --duration 592 --offset 0
         |
         |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         """.stripMargin()
@@ -161,19 +194,24 @@ def examples_message() {
         |
         |   Examples:
         |
-        |   1. Beamforming and folding on known pulsars with prepfold
-        |   mwax_beamform.nf --obsid 1372184672 --calid 1372184552 --begin 1372186776
-        |   --duration 592 --low_chan 109 --num_chan 24 --fits
-        |   --psrs "J2039-3616 J2124-3358 J2241-5236"
+        |   1. Downloading an observation then beamforming in PSRFITS format
+        |   mwax_beamform.nf --download --obsid 1372184672 --duration 592 --offset 0
+        |                    --low_chan 109 --num_chan 24 --fits
+        |                    --calid 1372184552 --use_default_sol
+        |                    --psrs "J2039-3616 J2124-3358 J2241-5236"
         |
-        |   2. Re-folding beamformed data
+        |   2. Same as (1) but using VDIF format and providing pointings
+        |   mwax_beamform.nf --download --obsid 1372184672 --duration 592 --offset 0
+        |                    --low_chan 109 --num_chan 24 --vdif
+        |                    --calid 1372184552 --use_default_sol
+        |                    --pointings "20:39:16.6_-36:16:17 21:24:43.84_-33:58:45.01"
+        |
+        |   3. Re-folding beamformed data
         |   mwax_beamform.nf --obsid 1372184672 --duration 592 --fits --skip_bf
-        |   --psrs "J2039-3616 J2124-3358 J2241-5236"
+        |                    --psrs "J2039-3616 J2124-3358 J2241-5236"
         |
-        |   3. Beamforming on pointings
-        |   mwax_beamform.nf --obsid 1372184672 --calid 1372184552 --begin 1372186776
-        |   --duration 592 --low_chan 109 --num_chan 24 --fits
-        |   --pointings "20:39:16.6_-36:16:17 21:24:43.846081_-33:58:45.01036"
+        |   4. Downloaded data without beamforming
+        |   mwax_beamform.nf --download_only --obsid 1372184672 --duration 592 --offset 0
         |
         |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         """.stripMargin()
