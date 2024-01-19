@@ -29,11 +29,13 @@ workflow VCS_CAL {
             "${params.vcs_dir}/${params.obsid}/cal",
             params.dt,
             params.df
-        ).out.ready
-        .collect()
-        .flatten()
-        .first()
-        .set { uvfits_ready }
+        )
+            .out
+            .ready
+            .collect()
+            .flatten()
+            .first()
+            .set { uvfits_ready }
     } else {
         Channel
             .of(true)
