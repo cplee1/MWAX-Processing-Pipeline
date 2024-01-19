@@ -14,35 +14,37 @@ process CHECK_ASVO_JOB_FILES {
 
     input:
     val(jobid)
-    val(asvo_path)
+    val(asvo_dir)
 
     output:
     env(obsid)
 
     script:
     """
+    asvo_path=${asvo_dir}/${jobid}
+    
     # Does the directory exist?
-    if [[ ! -d "${asvo_path}" ]]; then
+    if [[ ! -d "\${asvo_path}" ]]; then
         echo "Error: ASVO job directory does not exist."
         exit 2
     fi
 
     # Is there data files in the directory?
-    if [[ \$(find ${asvo_path} -name "*.sub"  | wc -l) -lt 1 && \\
-          \$(find ${asvo_path} -name "*.dat"  | wc -l) -lt 1 && \\
-          \$(find ${asvo_path} -name "*.fits" | wc -l) -lt 1 ]]; then
+    if [[ \$(find \${asvo_path} -name "*.sub"  | wc -l) -lt 1 && \\
+          \$(find \${asvo_path} -name "*.dat"  | wc -l) -lt 1 && \\
+          \$(find \${asvo_path} -name "*.fits" | wc -l) -lt 1 ]]; then
         echo "Error: Cannot locate data files."
         exit 3
     fi
 
     # Is there a metafits file in the directory?
-    if [[ \$(find ${asvo_path} -name "*.metafits" | wc -l) != 1 ]]; then
+    if [[ \$(find \${asvo_path} -name "*.metafits" | wc -l) != 1 ]]; then
         echo "Error: Cannot locate metafits file."
         exit 4
     fi
 
     # Get the obsid
-    obsid=\$(find ${asvo_path} -name "*.metafits" | xargs -n1 basename -s ".metafits")
+    obsid=\$(find \${asvo_path} -name "*.metafits" | xargs -n1 basename -s ".metafits")
 
     if [[ \${#obsid} != 10 ]]; then
         echo "Error: The provided obs ID is not valid."

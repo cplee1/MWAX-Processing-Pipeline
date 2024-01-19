@@ -58,16 +58,8 @@ def help_message() {
         |   --asvo_api_key <ASVO_API_KEY>
         |       API key corresponding to the user's ASVO account.
         |       [default: ${params.asvo_api_key}]
-        |   --calids <CALIDS>...
-        |       Space separated list of calibrator obs IDs to download.
-        |        Must enclose list in quotes.
-        |       [no default]
         |   --asvo_id_obs <ASVO_ID_OBS>
         |       ASVO job ID of the downloaded VCS observation.
-        |       [no default]
-        |   --asvo_id_cals <ASVO_ID_CALS>...
-        |       Space separated list of ASVO job IDs of the downloaded calibrator
-        |       observations. Must enclose list in quotes.
         |       [no default]
         |
         |   Frequency setup options:
@@ -229,10 +221,7 @@ include { VCS_BF } from './workflows/vcs_bf'
 
 workflow {
     if (params.download_only) {
-        if (params.obsid == null \
-            && params.calids == null \
-            && params.asvo_id_obs == null \
-            && params.asvo_id_cals == null) {
+        if (params.obsid == null && params.asvo_id_obs == null) {
             System.err.println("ERROR: No downloads requested")
         } else {
             if (params.obsid != null) {

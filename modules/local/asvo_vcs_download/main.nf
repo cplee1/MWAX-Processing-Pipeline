@@ -23,7 +23,8 @@ process ASVO_VCS_DOWNLOAD {
     val(duration)
 
     output:
-    tuple env(jobid), env(fpath), val('vcs')
+    env(jobid), emit: jobid
+    env(fpath), emit: path
 
     script:
     """

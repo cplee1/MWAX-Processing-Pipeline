@@ -3,8 +3,9 @@ process MOVE_DATA {
 
     input:
     val(ready)
-    val(base_dir)
-    val(asvo_path)
+    val(jobid)
+    val(vcs_dir)
+    val(asvo_dir)
     val(vcs_obsid)
     val(obsid_to_move)
     val(mode)
@@ -15,52 +16,52 @@ process MOVE_DATA {
     script:
     if ( mode == 'vcs' ) {
     """
-        if [[ ! -d ${base_dir} ]]; then
+        if [[ ! -d ${vcs_dir} ]]; then
             echo "Error: VCS directory does not exist."
             exit 1
         fi
 
         # Create a directory to move files into
-        mkdir -p -m 771 ${base_dir}/${obsid_to_move}/combined
+        mkdir -p -m 771 ${vcs_dir}/${obsid_to_move}/combined
 
         # Move data
-        mv ${fpath}/*.sub ${base_dir}/${obsid_to_move}/combined
-        mv ${fpath}/*.metafits ${base_dir}/${obsid_to_move}
+        mv ${asvo_dir}/${jobid}/*.sub ${vcs_dir}/${obsid_to_move}/combined
+        mv ${asvo_dir}/${jobid}/*.metafits ${vcs_dir}/${obsid_to_move}
         
         # Delete the job directory
-        if [[ -d ${fpath} ]]; then
-            if [[ -r ${fpath}/MWA_ASVO_README.md ]]; then
-                rm ${fpath}/MWA_ASVO_README.md
+        if [[ -d ${asvo_dir}/${jobid} ]]; then
+            if [[ -r ${asvo_dir}/${jobid}/MWA_ASVO_README.md ]]; then
+                rm ${asvo_dir}/${jobid}/MWA_ASVO_README.md
             fi
-            if [[ -z "\$(ls -A ${fpath})" ]]; then
-                rm -r ${fpath}
+            if [[ -z "\$(ls -A ${asvo_dir}/${jobid})" ]]; then
+                rmdir ${asvo_dir}/${jobid}
             else
-                echo "Job directory not empty: ${fpath}."
+                echo "Job directory not empty: ${asvo_dir}/${jobid}."
             fi
         fi
         """
     } else if ( mode == 'vis' ) {
         """
-        if [[ ! -d ${base_dir} ]]; then
+        if [[ ! -d ${vcs_dir} ]]; then
             echo "Error: VCS directory does not exist."
             exit 1
         fi
 
         # Create a directory to move files into
-        mkdir -p -m 771 ${base_dir}/${vcs_obsid}/cal/${obsid_to_move}
+        mkdir -p -m 771 ${asvo_dir}/${jobid}/${vcs_obsid}/cal/${obsid_to_move}
 
         # Move data
-        mv ${fpath}/* ${base_dir}/${vcs_obsid}/cal/${obsid_to_move}
+        mv ${asvo_dir}/${jobid}/* ${asvo_dir}/${jobid}/${vcs_obsid}/cal/${obsid_to_move}
 
         # Delete the job directory
-        if [[ -d ${fpath} ]]; then
-            if [[ -r ${fpath}/MWA_ASVO_README.md ]]; then
-                rm ${fpath}/MWA_ASVO_README.md
+        if [[ -d ${asvo_dir}/${jobid} ]]; then
+            if [[ -r ${asvo_dir}/${jobid}/MWA_ASVO_README.md ]]; then
+                rm ${asvo_dir}/${jobid}/MWA_ASVO_README.md
             fi
-            if [[ -z "\$(ls -A ${fpath})" ]]; then
-                rm -r ${fpath}
+            if [[ -z "\$(ls -A ${asvo_dir}/${jobid})" ]]; then
+                rmdir ${asvo_dir}/${jobid}
             else
-                echo "Job directory not empty: ${fpath}."
+                echo "Job directory not empty: ${asvo_dir}/${jobid}."
             fi
         fi
         """

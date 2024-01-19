@@ -12,7 +12,7 @@ process LOCATE_VDIF_FILES {
     script:
     """
     vdif_dir="${source_dir}/vdif_${duration}s"
-    if [[ ! -d \$psr_dir ]]; then
+    if [[ ! -d \$vdif_dir ]]; then
         echo "ERROR :: Cannot locate data directory: \${vdif_dir}"
         exit 1
     fi

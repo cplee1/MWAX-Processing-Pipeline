@@ -5,7 +5,7 @@
 include { CREATE_DATA_DIRECTORIES  } from '../modules/local/create_data_directories'
 include { GET_CALIBRATION_SOLUTION } from '../modules/local/get_calibration_solution'
 
-include { GET_MWA_DATA             } from '../subworkflows/local/get_mwa_data'
+include { GET_VCS_DATA             } from '../subworkflows/local/get_vcs_data'
 include { PROCESS_PSRFITS          } from '../subworkflows/local/process_psrfits'
 include { PROCESS_VDIF             } from '../subworkflows/local/process_vdif'
 
@@ -51,13 +51,11 @@ workflow VCS_BF {
         //
         // Download and move data
         //
-        GET_MWA_DATA (
+        GET_VCS_DATA (
             params.obsid,
             params.offset,
             params.duration,
-            params.calids,
             params.asvo_id_obs,
-            params.asvo_id_cals,
             params.asvo_dir,
             params.vcs_dir
         ).set { files_ready }
@@ -106,13 +104,23 @@ workflow VCS_BF {
             )
         )
 
-        //
-        // Retrieve the metafits and calibration solution
-        //
-        GET_CALIBRATION_SOLUTION (
-            params.obsid,
-            params.calid
-        )
+        if (params.calid != null) {
+            //
+            // Retrieve the metafits and calibration solution
+            //
+            GET_CALIBRATION_SOLUTION (
+                params.obsid,
+                params.calid
+            )
+
+            obs_metafits = GET_CALIBRATION_SOLUTION.out.obsmeta
+            cal_metafits = GET_CALIBRATION_SOLUTION.out.calmeta
+            cal_solution = GET_CALIBRATION_SOLUTION.out.calsol
+        } else {
+            obs_metafits = Channel.empty()
+            cal_metafits = Channel.empty()
+            cal_solution = Channel.empty()
+        }
 
         if (params.fits) {
             //
@@ -135,9 +143,9 @@ workflow VCS_BF {
                 ),
                 params.low_chan,
                 params.flagged_tiles,
-                GET_CALIBRATION_SOLUTION.out.obsmeta,
-                GET_CALIBRATION_SOLUTION.out.calmeta,
-                GET_CALIBRATION_SOLUTION.out.calsol,
+                obs_metafits,
+                cal_metafits,
+                cal_solution,
                 params.skip_bf,
                 params.ephemeris_dir,
                 params.force_psrcat,
@@ -171,9 +179,9 @@ workflow VCS_BF {
                 ),
                 params.low_chan,
                 params.flagged_tiles,
-                GET_CALIBRATION_SOLUTION.out.obsmeta,
-                GET_CALIBRATION_SOLUTION.out.calmeta,
-                GET_CALIBRATION_SOLUTION.out.calsol,
+                obs_metafits,
+                cal_metafits,
+                cal_solution,
                 params.skip_bf,
                 params.ephemeris_dir,
                 params.force_psrcat,
