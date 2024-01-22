@@ -22,6 +22,7 @@ workflow PROCESS_PSRFITS {
     duration         //   integer: length of data to beamform
     begin            //   integer: GPS start time of data to beamform
     low_chan         //   integer: lowest coarse channel index
+    num_chan         //   integer: number of coarse channels
     flagged_tiles    //    string: space separated list of tiles to flag
     obs_metafits     //      file: /path/to/<obsid>.metafits
     cal_metafits     //      file: /path/to/<calid>.metafits
@@ -120,6 +121,7 @@ workflow PROCESS_PSRFITS {
             source,
             source_dir,
             duration,
+            num_chan,
             nbin,
             nsub,
             npart,

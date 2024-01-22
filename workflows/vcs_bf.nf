@@ -142,6 +142,7 @@ workflow VCS_BF {
                     params.offset
                 ),
                 params.low_chan,
+                params.num_chan,
                 params.flagged_tiles,
                 obs_metafits,
                 cal_metafits,
@@ -178,6 +179,7 @@ workflow VCS_BF {
                     params.offset
                 ),
                 params.low_chan,
+                params.num_chan,
                 params.flagged_tiles,
                 obs_metafits,
                 cal_metafits,

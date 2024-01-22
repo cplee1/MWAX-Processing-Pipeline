@@ -14,6 +14,7 @@ process DSPSR {
     val(psr)
     val(source_dir)
     val(duration)
+    val(num_chan)
     val(nbin)
     val(fine_chan)
     val(tint)

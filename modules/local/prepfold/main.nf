@@ -14,6 +14,7 @@ process PREPFOLD {
     val(psr)
     val(source_dir)
     val(duration)
+    val(num_chan)
     val(nbin)
     val(nsub)
     val(npart)
@@ -59,7 +60,7 @@ process PREPFOLD {
     # Bin number computations
     spin_period_ms=\$(echo "1000 / \$spin_freq" | bc -l)
     bin_time_res_ms=\$(echo "\$spin_period_ms/${nbin}" | bc -l)
-    nq_time_res_ms=\$(echo "(${fine_chan}*${num_chan})/(1.28*10^6)*10^3" | bc -l)
+    nq_time_res_ms=\$(echo "(${nsub})/(1.28*10^6)*10^3" | bc -l)
     if (( \$(echo "\$bin_time_res_ms < \$nq_time_res_ms" | bc -l) )); then
         nbin=\$(echo "\$spin_period_ms/\$nq_time_res_ms" | bc)
     else
