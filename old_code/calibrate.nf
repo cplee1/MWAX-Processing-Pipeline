@@ -1,8 +1,6 @@
-// Processes
-include { check_cal_directory   } from '../modules/calibrate_module'
-include { birli                 } from '../modules/calibrate_module'
-include { get_source_list       } from '../modules/calibrate_module'
-include { hyperdrive            } from '../modules/calibrate_module'
+//
+// Calibrate observations using Birli and Hyperdrive
+//
 
 workflow cal {
     take:

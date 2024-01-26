@@ -11,6 +11,8 @@ def help_message() {
         |   Download observations for VCS processing and store them in a the
         |   standard VCS directory structure.
         |
+        |   Ensure that the ASVO API key is defined in your login environment.
+        |
         |   Usage: mwax_download.nf [OPTIONS]
         |
         |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -135,9 +137,6 @@ workflow {
             mv()  // Move data
         }
     } else {
-        if ( ! params.asvo_api_key ) {
-            System.err.println("ERROR: ASVO API key not defined")
-        }
         if ( ! params.obsid ) {
             System.err.println("ERROR: Obs ID is not defined")
         }

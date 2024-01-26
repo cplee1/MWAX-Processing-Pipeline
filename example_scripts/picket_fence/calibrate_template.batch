@@ -13,11 +13,9 @@
  
 module use /pawsey/mwa/software/python3/modulefiles
 module load hyperdrive
-module load birli
 module load srclists
 module list
 hyperdrive -V
-birli -V
 
 # Get the ObsID from the metafits filename
 mfits=$(basename -- "$(ls ../*.metafits)")
