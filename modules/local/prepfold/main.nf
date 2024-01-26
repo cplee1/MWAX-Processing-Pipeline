@@ -60,12 +60,15 @@ process PREPFOLD {
     # Bin number computations
     spin_period_ms=\$(echo "1000 / \$spin_freq" | bc -l)
     bin_time_res_ms=\$(echo "\$spin_period_ms/${nbin}" | bc -l)
-    nq_time_res_ms=\$(echo "(${nsub})/(1.28*10^6)*10^3" | bc -l)
+    nq_time_res_ms=\$(echo "${nsub}/(1.28*10^6)*10^3" | bc -l)
     if (( \$(echo "\$bin_time_res_ms < \$nq_time_res_ms" | bc -l) )); then
         nbin=\$(echo "\$spin_period_ms/\$nq_time_res_ms" | bc)
     else
         nbin=${nbin}
     fi
+
+    # Compute the total number of channels
+    nsub_total=\$(printf "%.0f" \$(echo "scale=0; ${nsub}*${num_chan}" | bc -l))
 
     prepfold \\
         -ncpus ${task.cpus} \\
@@ -75,7 +78,7 @@ process PREPFOLD {
         -noscales \\
         -nooffsets \\
         -n \$nbin \\
-        -nsub ${nsub} \\
+        -nsub \$nsub_total \\
         -npart ${npart} \\
         \$bin_flag \\
         \$nosearch_flag \\
