@@ -14,8 +14,11 @@
 #SBATCH --export=NONE
  
 module use /pawsey/mwa/software/python3/modulefiles
-module load vcsbeam/v4.2-19-g2a93cdf
+module load vcsbeam
+
 module list
+
+which make_mwa_tied_array_beam
 make_mwa_tied_array_beam -V
 
 # obs ID of the VCS observation
