@@ -1,5 +1,6 @@
 process GET_CALIBRATION_SOLUTION {
     input:
+    val(ready)
     val(obsid)
     val(calid)
 

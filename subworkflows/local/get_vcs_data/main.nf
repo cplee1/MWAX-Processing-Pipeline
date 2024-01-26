@@ -23,18 +23,14 @@ workflow GET_VCS_DATA {
     main:
 
     if (asvo_job_id != null) {
-        Channel
-            .from(asvo_job_id)
-            .set { jobid }
+        jobid = Channel.from(asvo_job_id)
     } else {
         ASVO_VCS_DOWNLOAD (
             obsid,
             offset,
             duration
         )
-            .out
-            .jobid
-            .set { jobid }
+        jobid = ASVO_VCS_DOWNLOAD.out.jobid
     }
 
     // Check that data and metadata exist in the ASVO download directories
@@ -55,8 +51,8 @@ workflow GET_VCS_DATA {
         obsid,
         CHECK_ASVO_JOB_FILES.out,
         'vcs'
-    ).set { ready }
+    )
 
     emit:
-    ready // channel: val(true)
+    MOVE_DATA.out.ready // channel: val(true)
 }

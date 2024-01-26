@@ -11,7 +11,7 @@ process MOVE_DATA {
     val(mode)
 
     output:
-    val(true)
+    val(true), emit: ready
 
     script:
     if ( mode == 'vcs' ) {

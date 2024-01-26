@@ -109,6 +109,7 @@ workflow VCS_BF {
             // Retrieve the metafits and calibration solution
             //
             GET_CALIBRATION_SOLUTION (
+                files_ready,
                 params.obsid,
                 params.calid
             )
