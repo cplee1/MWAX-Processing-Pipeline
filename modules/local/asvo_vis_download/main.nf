@@ -30,7 +30,7 @@ process ASVO_VIS_DOWNLOAD {
 
     # Submit job and supress failure if job already exists
     ${params.giant_squid} submit-vis -v -w \\
-        --delivery astro \\
+        --delivery scratch \\
         ${obsid} \\
         || true
 

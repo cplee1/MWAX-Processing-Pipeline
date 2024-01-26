@@ -32,7 +32,7 @@ process ASVO_VCS_DOWNLOAD {
 
     # Submit job and supress failure if job already exists
     ${params.giant_squid} submit-volt -v -w \\
-        --delivery astro \\
+        --delivery scratch \\
         --offset ${offset} \\
         --duration ${duration} \\
         ${obsid} \\
