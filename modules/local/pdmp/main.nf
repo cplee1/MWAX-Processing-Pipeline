@@ -9,12 +9,12 @@ process PDMP {
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 1
 
-    publishDir "${source_dir}/vdif_${duration}s/dspsr/pdmp", mode: 'move'
+    publishDir "${pointings_dir}/${psr}/vdif_${duration}s/dspsr/pdmp", mode: 'move'
 
     input:
     val(ready)
     val(psr)
-    val(source_dir)
+    val(pointings_dir)
     val(duration)
     val(pdmp_mc)
     val(pdmp_ms)
@@ -26,7 +26,7 @@ process PDMP {
 
     script:
     """
-    base_dir="${source_dir}/vdif_${duration}s/dspsr"
+    base_dir="${pointings_dir}/${psr}/vdif_${duration}s/dspsr"
     find \$base_dir -type f -name "*.ar" -exec ln -s '{}' \\;
     ar_file=\$(find *.ar)
     if [[ \$(echo \$ar_file | wc -l) -gt 1 ]]; then

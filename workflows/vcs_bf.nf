@@ -2,6 +2,7 @@
 // Download from ASVO, beamform, fold, search, plot, and upload to Acacia
 //
 
+include { CHECK_OBS_DIRECTORY      } from '../modules/local/check_obs_directory'
 include { CREATE_DATA_DIRECTORIES  } from '../modules/local/create_data_directories'
 include { GET_CALIBRATION_SOLUTION } from '../modules/local/get_calibration_solution'
 
@@ -88,14 +89,21 @@ workflow VCS_BF {
         }
 
         //
+        // Check that the obs ID directory and subdirectories exist
+        //
+        CHECK_OBS_DIRECTORY (
+            files_ready,
+            params.vcs_dir,
+            params.obsid
+        )
+
+        //
         // Create dataproduct directories or backup existing data
         //
         CREATE_DATA_DIRECTORIES (
-            files_ready,
             params.fits,
             params.vdif,
-            params.vcs_dir,
-            params.obsid,
+            CHECK_OBS_DIRECTORY.out.pointings_dir,
             sources,
             compute_duration(
                 params.obsid,
@@ -128,11 +136,10 @@ workflow VCS_BF {
             // Beamform and search PSRFITS
             //
             PROCESS_PSRFITS (
-                sources,
+                sources.collect(),
                 is_pointing,
-                CREATE_DATA_DIRECTORIES.out.source_dir,
                 CREATE_DATA_DIRECTORIES.out.pointings_dir,
-                CREATE_DATA_DIRECTORIES.out.data_dir,
+                CHECK_OBS_DIRECTORY.out.data_dir,
                 compute_duration (
                     params.obsid,
                     params.offset,
@@ -166,10 +173,10 @@ workflow VCS_BF {
             // Beamform and search VDIF
             //
             PROCESS_VDIF (
-                sources,
+                sources.collect(),
                 is_pointing,
-                CREATE_DATA_DIRECTORIES.out.source_dir,
-                CREATE_DATA_DIRECTORIES.out.data_dir,
+                CREATE_DATA_DIRECTORIES.out.pointings_dir,
+                CHECK_OBS_DIRECTORY.out.data_dir,
                 compute_duration (
                     params.obsid,
                     params.offset,

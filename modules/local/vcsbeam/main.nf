@@ -4,16 +4,14 @@ process VCSBEAM {
 
     tag "${psr}"
 
-    maxForks 3
+    maxForks 6
 
-    time { 1.hour * task.attempt }
+    time { 4.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1
 
     input:
-    val(psr)
-    val(source_dir)
     val(data_dir)
     val(duration)
     val(begin)
@@ -22,7 +20,7 @@ process VCSBEAM {
     val(cal_metafits)
     val(cal_solution)
     val(flagged_tiles)
-    val(pointings)
+    tuple val(psr), val(pointings)
 
     output:
     path('*.{vdif,hdr}')

@@ -2,9 +2,9 @@ process VCSBEAM_MULTIPIXEL {
     label 'gpu'
     label 'vcsbeam'
 
-    maxForks 1
+    maxForks 3
 
-    time { 1.hour * task.attempt }
+    time { 8.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
     maxRetries 1

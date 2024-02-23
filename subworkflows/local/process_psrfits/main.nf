@@ -14,9 +14,8 @@ include { PREPFOLD             } from '../../../modules/local/prepfold'
 
 workflow PROCESS_PSRFITS {
     take:
-    source           //    string: pulsar name or ra_dec
+    sources          //      list: pulsar names or ra_decs
     is_pointing      //   boolean: whether the input is a pointing
-    source_dir       // directory: /path/to/<obsid>/pointings/<source>
     pointings_dir    // directory: /path/to/<obsid>/pointings
     data_dir         // directory: /path/to/<obsid>/combined
     duration         //   integer: length of data to beamform
@@ -40,6 +39,8 @@ workflow PROCESS_PSRFITS {
 
     main:
 
+    source = sources.flatten()
+
     if (skip_beamforming) {
         //
         // Stage in the published beamformed files
@@ -47,7 +48,7 @@ workflow PROCESS_PSRFITS {
         LOCATE_PSRFITS_FILES (
             true,
             source,
-            source_dir,
+            pointings_dir,
             duration
         ).set { vcsbeam_files }
     } else {
@@ -69,7 +70,7 @@ workflow PROCESS_PSRFITS {
         )
 
         VCSBEAM (
-            source.collect(),
+            sources,
             pointings_dir,
             data_dir,
             duration,
@@ -86,7 +87,7 @@ workflow PROCESS_PSRFITS {
         LOCATE_PSRFITS_FILES (
             VCSBEAM.out,
             source,
-            source_dir,
+            pointings_dir,
             duration
         ).set { vcsbeam_files }
     }
@@ -119,7 +120,7 @@ workflow PROCESS_PSRFITS {
 
         PREPFOLD (
             source,
-            source_dir,
+            pointings_dir,
             duration,
             num_chan,
             nbin,

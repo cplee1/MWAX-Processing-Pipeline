@@ -3,7 +3,7 @@ process LOCATE_VDIF_FILES {
 
     input:
     val(source)
-    val(source_dir)
+    val(pointings_dir)
     val(duration)
 
     output:
@@ -11,7 +11,7 @@ process LOCATE_VDIF_FILES {
 
     script:
     """
-    vdif_dir="${source_dir}/vdif_${duration}s"
+    vdif_dir="${pointings_dir}/${source}/vdif_${duration}s"
     if [[ ! -d \$vdif_dir ]]; then
         echo "ERROR :: Cannot locate data directory: \${vdif_dir}"
         exit 1

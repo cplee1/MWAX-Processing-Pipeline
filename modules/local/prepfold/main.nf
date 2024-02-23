@@ -12,7 +12,7 @@ process PREPFOLD {
 
     input:
     val(psr)
-    val(source_dir)
+    val(pointings_dir)
     val(duration)
     val(num_chan)
     val(nbin)
@@ -84,7 +84,7 @@ process PREPFOLD {
         \$nosearch_flag \\
         \$(cat fitsfiles.txt)
 
-    dataproduct_dir=${source_dir}/psrfits_${duration}s
+    dataproduct_dir=${pointings_dir}/${source}/psrfits_${duration}s
     if [[ ! -d \${dataproduct_dir}/prepfold ]]; then
         mkdir -p -m 771 \${dataproduct_dir}/prepfold
     fi

@@ -4,7 +4,7 @@ process LOCATE_PSRFITS_FILES {
     input:
     val(ready)
     val(source)
-    val(source_dir)
+    val(pointings_dir)
     val(duration)
 
     output:
@@ -12,7 +12,7 @@ process LOCATE_PSRFITS_FILES {
 
     script:
     """
-    psrfits_dir="${source_dir}/psrfits_${duration}s"
+    psrfits_dir="${pointings_dir}/${source}/psrfits_${duration}s"
     if [[ ! -d \$psrfits_dir ]]; then
         echo "Error: Cannot locate data directory."
         exit 1

@@ -3,12 +3,12 @@ process PUBLISH_VCSBEAM_FILES {
 
     input:
     val(source)
-    val(source_dir)
+    val(pointings_dir)
     val(duration)
     path(files)
 
     script:
     """
-    mv -t "${source_dir}/vdif_${duration}s" ${files}
+    mv -t "${pointings_dir}/${source}/vdif_${duration}s" ${files}
     """
 }

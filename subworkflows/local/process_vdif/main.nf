@@ -2,6 +2,7 @@
 // Beamform and fold VCS pulsar observations in VDIF format
 //
 
+include { PARSE_TILE_FLAGS      } from '../../../modules/local/parse_tile_flags'
 include { PARSE_POINTING        } from '../../../modules/local/parse_pointing'
 include { GET_POINTING          } from '../../../modules/local/get_pointing'
 include { VCSBEAM               } from '../../../modules/local/vcsbeam'
@@ -15,9 +16,9 @@ include { PDMP                  } from '../../../modules/local/pdmp'
 
 workflow PROCESS_VDIF {
     take:
-    source           //    string: pulsar name or ra_dec
+    sources          //      list: pulsar names or ra_decs
     is_pointing      //   boolean: whether the input is a pointing
-    source_dir       // directory: /path/to/<obsid>/pointings/<source>
+    pointings_dir    // directory: /path/to/<obsid>/pointings
     data_dir         // directory: /path/to/<obsid>/combined
     duration         //   integer: length of data to beamform
     begin            //   integer: GPS start time of data to beamform
@@ -42,13 +43,15 @@ workflow PROCESS_VDIF {
 
     main:
 
+    source = sources.flatten()
+
     if (skip_beamforming) {
         //
         // Stage in the published beamformed files
         //
         LOCATE_VDIF_FILES (
             source,
-            source_dir,
+            pointings_dir,
             duration
         ).set { vcsbeam_files }
     } else {
@@ -56,31 +59,29 @@ workflow PROCESS_VDIF {
         // Beamform on sources
         //
         if (is_pointing) {
-            PARSE_POINTING (
-                source.map { tuple(it.split('_')) },
-                cal_metafits,
-                flagged_tiles
-            ).set { vcsbeam_input }
+            PARSE_POINTING ( source.map { tuple(it.split('_')) } )
+                .set { pointing_files }
         } else {
-            GET_POINTING (
-                source,
-                cal_metafits,
-                flagged_tiles
-            ).set { vcsbeam_input }
+            GET_POINTING ( source )
+                .set { pointing_files }
         }
 
+        // TODO: parse convert_rts_flags
+        PARSE_TILE_FLAGS (
+            cal_metafits,
+            flagged_tiles,
+        )
+
         VCSBEAM (
-            source,
-            source_dir,
-            data_dir,
+            data_dir.first(),
             duration,
             begin,
             low_chan,
-            obs_metafits,
-            cal_metafits,
-            cal_solution,
-            vcsbeam_input.flagged_tiles,
-            vcsbeam_input.pointings
+            obs_metafits.first(),
+            cal_metafits.first(),
+            cal_solution.first(),
+            PARSE_TILE_FLAGS.out.flagged_tiles.first(),
+            pointing_files.pointings
         ).set { vcsbeam_files }
     }
 
@@ -104,7 +105,7 @@ workflow PROCESS_VDIF {
         } else if (!skip_beamforming) {
             PUBLISH_VCSBEAM_FILES (
                 source,
-                source_dir,
+                pointings_dir,
                 duration,
                 vcsbeam_files
             )
@@ -118,7 +119,7 @@ workflow PROCESS_VDIF {
         )
         DSPSR (
             source,
-            source_dir,
+            pointings_dir,
             duration,
             num_chan,
             nbin,
@@ -131,7 +132,7 @@ workflow PROCESS_VDIF {
             PDMP (
                 DSPSR.out,
                 source,
-                source_dir,
+                pointings_dir,
                 duration,
                 pdmp_mc,
                 pdmp_ms

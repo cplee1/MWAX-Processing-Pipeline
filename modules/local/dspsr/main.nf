@@ -12,7 +12,7 @@ process DSPSR {
 
     input:
     val(psr)
-    val(source_dir)
+    val(pointings_dir)
     val(duration)
     val(num_chan)
     val(nbin)
@@ -94,7 +94,7 @@ process DSPSR {
     pav -Tp -C -Gd -g \${base_name}_frequency_phase.png/png \${base_name}.ar
     pav -Fp -C -Yd -g \${base_name}_time_phase.png/png \${base_name}.ar
 
-    dataproduct_dir=${source_dir}/vdif_${duration}s
+    dataproduct_dir=${pointings_dir}/${psr}/vdif_${duration}s
     if [[ ! -d \${dataproduct_dir}/dspsr ]]; then
         mkdir -p -m 771 \${dataproduct_dir}/dspsr
     fi
