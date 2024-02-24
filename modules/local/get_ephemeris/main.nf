@@ -14,13 +14,12 @@ process GET_EPHEMERIS {
     }
 
     input:
-    val(psr)
-    val(vcsbeam_files)
+    tuple val(psr), val(vcsbeam_files)
     val(ephemeris_dir)
     val(force_psrcat)
 
     output:
-    path("${psr}.par")
+    tuple val(psr), path("${psr}.par"), val(vcsbeam_files)
 
     script:
     if ( force_psrcat ) {

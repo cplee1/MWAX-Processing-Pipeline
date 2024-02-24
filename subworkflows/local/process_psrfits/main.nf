@@ -50,7 +50,7 @@ workflow PROCESS_PSRFITS {
             source,
             pointings_dir,
             duration
-        ).set { vcsbeam_files }
+        ).set { vcsbeam_tuple }
     } else {
         //
         // Beamform on sources
@@ -89,7 +89,7 @@ workflow PROCESS_PSRFITS {
             source,
             pointings_dir,
             duration
-        ).set { vcsbeam_files }
+        ).set { vcsbeam_tuple }
     }
 
     //
@@ -99,36 +99,31 @@ workflow PROCESS_PSRFITS {
         if (acacia_profile != null && acacia_bucket != null && acacia_prefix != null) {
             // Copy to <profile>/<bucket>/<prefix>/<source>.tar
             CREATE_TARBALL (
-                source,
-                vcsbeam_files
+                vcsbeam_tuple
             )
             COPY_TO_ACACIA (
-                source,
+                CREATE_TARBALL.out,
                 acacia_profile,
                 acacia_bucket,
-                acacia_prefix,
-                CREATE_TARBALL.out
+                acacia_prefix
             )
         }
     } else {
         GET_EPHEMERIS (
-            source,
-            vcsbeam_files,
+            vcsbeam_tuple,
             ephemeris_dir,
             force_psrcat
         )
 
         PREPFOLD (
-            source,
-            pointings_dir,
+            GET_EPHEMERIS.out,
+            pointings_dir.first(),
             duration,
             num_chan,
             nbin,
             nsub,
             npart,
-            nosearch,
-            vcsbeam_files,
-            GET_EPHEMERIS.out
+            nosearch
         )
     }
 }

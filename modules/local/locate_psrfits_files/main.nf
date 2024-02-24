@@ -8,7 +8,7 @@ process LOCATE_PSRFITS_FILES {
     val(duration)
 
     output:
-    path('*.fits')
+    tuple val(source), path('*.fits')
 
     script:
     """

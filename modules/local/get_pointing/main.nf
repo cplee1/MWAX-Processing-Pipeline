@@ -7,7 +7,7 @@ process GET_POINTING {
     val(psr)
 
     output:
-    tuple val(psr), path('pointings.txt'), emit: pointings
+    tuple val(psr), path('pointings.txt')
 
     script:
     """

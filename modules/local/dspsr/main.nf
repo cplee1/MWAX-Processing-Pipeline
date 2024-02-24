@@ -5,24 +5,22 @@ process DSPSR {
 
     tag "${psr}"
 
-    time { 2.hour * task.attempt }
+    time { 4.hour * task.attempt }
 
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 2
 
     input:
-    val(psr)
+    tuple val(psr), path(par_file), path(vcsbeam_files)
     val(pointings_dir)
     val(duration)
     val(num_chan)
     val(nbin)
     val(fine_chan)
     val(tint)
-    path(vcsbeam_files)
-    path(par_file)
 
     output:
-    val(true)
+    val(psr)
 
     script:
     """

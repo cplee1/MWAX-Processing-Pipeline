@@ -7,8 +7,7 @@ process CREATE_TARBALL {
     time 1.hour
 
     input:
-    val(label)
-    path(files)
+    tuple val(label), path(files)
 
     output:
     path("${label}.tar")

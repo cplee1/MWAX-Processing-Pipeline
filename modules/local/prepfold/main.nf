@@ -5,13 +5,13 @@ process PREPFOLD {
 
     tag "${psr}"
 
-    time 3.hour
+    time 4.hour
 
     errorStrategy { task.attempt == 1 ? 'retry' : 'ignore' }
     maxRetries 1
 
     input:
-    val(psr)
+    tuple val(psr), path(par_file), path(vcsbeam_files)
     val(pointings_dir)
     val(duration)
     val(num_chan)
@@ -19,8 +19,6 @@ process PREPFOLD {
     val(nsub)
     val(npart)
     val(nosearch)
-    path(vcsbeam_files)
-    path(par_file)
 
     script:
     """

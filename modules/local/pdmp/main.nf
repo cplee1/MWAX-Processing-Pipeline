@@ -12,7 +12,6 @@ process PDMP {
     publishDir "${pointings_dir}/${psr}/vdif_${duration}s/dspsr/pdmp", mode: 'move'
 
     input:
-    val(ready)
     val(psr)
     val(pointings_dir)
     val(duration)

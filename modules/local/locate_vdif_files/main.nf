@@ -7,7 +7,7 @@ process LOCATE_VDIF_FILES {
     val(duration)
 
     output:
-    path('*.{vdif,hdr}')
+    tuple val(source), path('*.{vdif,hdr}')
 
     script:
     """

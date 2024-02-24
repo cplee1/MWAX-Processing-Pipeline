@@ -3,7 +3,7 @@ process PARSE_POINTING {
     tuple val(RAJ), val(DECJ)
 
     output:
-    tuple val("${RAJ}_${DECJ}"), path('pointings.txt'), emit: pointings
+    tuple val("${RAJ}_${DECJ}"), path('pointings.txt')
 
     script:
     """

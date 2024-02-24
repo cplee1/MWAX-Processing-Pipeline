@@ -53,17 +53,17 @@ workflow PROCESS_VDIF {
             source,
             pointings_dir,
             duration
-        ).set { vcsbeam_files }
+        ).set { vcsbeam_tuple }
     } else {
         //
         // Beamform on sources
         //
         if (is_pointing) {
             PARSE_POINTING ( source.map { tuple(it.split('_')) } )
-                .set { pointing_files }
+                .set { pointing_tuple }
         } else {
             GET_POINTING ( source )
-                .set { pointing_files }
+                .set { pointing_tuple }
         }
 
         // TODO: parse convert_rts_flags
@@ -73,6 +73,7 @@ workflow PROCESS_VDIF {
         )
 
         VCSBEAM (
+            pointing_tuple,
             data_dir.first(),
             duration,
             begin,
@@ -80,9 +81,8 @@ workflow PROCESS_VDIF {
             obs_metafits.first(),
             cal_metafits.first(),
             cal_solution.first(),
-            PARSE_TILE_FLAGS.out.flagged_tiles.first(),
-            pointing_files.pointings
-        ).set { vcsbeam_files }
+            PARSE_TILE_FLAGS.out.flagged_tiles.first()
+        ).set { vcsbeam_tuple }
     }
 
     //
@@ -92,47 +92,40 @@ workflow PROCESS_VDIF {
         if (acacia_profile != null && acacia_bucket != null && acacia_prefix != null) {
             // Copy to <profile>/<bucket>/<prefix>/<source>.tar
             CREATE_TARBALL (
-                source,
-                vcsbeam_files
+                vcsbeam_tuple
             )
             COPY_TO_ACACIA (
-                source,
+                CREATE_TARBALL.out,
                 acacia_profile,
                 acacia_bucket,
-                acacia_prefix,
-                CREATE_TARBALL.out
+                acacia_prefix
             )
         } else if (!skip_beamforming) {
             PUBLISH_VCSBEAM_FILES (
-                source,
+                vcsbeam_tuple,
                 pointings_dir,
-                duration,
-                vcsbeam_files
+                duration
             )
         }
     } else {
         GET_EPHEMERIS (
-            source,
-            vcsbeam_files,
+            vcsbeam_tuple,
             ephemeris_dir,
             force_psrcat
         )
         DSPSR (
-            source,
-            pointings_dir,
+            GET_EPHEMERIS.out,
+            pointings_dir.first(),
             duration,
             num_chan,
             nbin,
             fine_chan,
-            tint,
-            vcsbeam_files,
-            GET_EPHEMERIS.out
+            tint
         )
         if (!nosearch) {
             PDMP (
                 DSPSR.out,
-                source,
-                pointings_dir,
+                pointings_dir.first(),
                 duration,
                 pdmp_mc,
                 pdmp_ms

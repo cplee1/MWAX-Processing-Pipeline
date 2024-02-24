@@ -2,10 +2,9 @@ process PUBLISH_VCSBEAM_FILES {
     tag "${source}"
 
     input:
-    val(source)
+    tuple val(source), path(files)
     val(pointings_dir)
     val(duration)
-    path(files)
 
     script:
     """

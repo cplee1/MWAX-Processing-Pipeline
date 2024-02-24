@@ -10,11 +10,10 @@ process COPY_TO_ACACIA {
     errorStrategy 'ignore'
 
     input:
-    val(psr)
+    tuple val(psr), path(tar_file)
     val(acacia_profile)
     val(acacia_bucket)
     val(acacia_prefix)
-    path(tar_file)
 
     script:
     """
