@@ -82,7 +82,7 @@ process PREPFOLD {
         \$nosearch_flag \\
         \$(cat fitsfiles.txt)
 
-    dataproduct_dir=${pointings_dir}/${source}/psrfits_${duration}s
+    dataproduct_dir=${pointings_dir}/${psr}/psrfits_${duration}s
     if [[ ! -d \${dataproduct_dir}/prepfold ]]; then
         mkdir -p -m 771 \${dataproduct_dir}/prepfold
     fi
