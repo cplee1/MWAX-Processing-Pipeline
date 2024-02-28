@@ -64,13 +64,13 @@ workflow PROCESS_PSRFITS {
         }
 
         COMBINE_POINTINGS (
-            pointing_files.collect(),
+            pointing_files.collate(5),
             cal_metafits,
             flagged_tiles
         )
 
         VCSBEAM (
-            sources,
+            COMBINE_POINTINGS.out,
             pointings_dir,
             data_dir,
             duration,
@@ -78,10 +78,7 @@ workflow PROCESS_PSRFITS {
             low_chan,
             obs_metafits,
             cal_metafits,
-            cal_solution,
-            COMBINE_POINTINGS.out.flagged_tiles,
-            COMBINE_POINTINGS.out.pointings,
-            COMBINE_POINTINGS.out.pairs
+            cal_solution
         )
 
         LOCATE_PSRFITS_FILES (
@@ -117,7 +114,7 @@ workflow PROCESS_PSRFITS {
 
         PREPFOLD (
             GET_EPHEMERIS.out,
-            pointings_dir.first(),
+            pointings_dir,
             duration,
             num_chan,
             nbin,

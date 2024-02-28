@@ -5,9 +5,7 @@ process COMBINE_POINTINGS {
     val(flagged_tiles)
 
     output:
-    path('pointings.txt'), emit: pointings
-    path('pointing_pairs.txt'), emit: pairs
-    path('flagged_tiles.txt'), emit: flagged_tiles
+    tuple path('pointings.txt'), path('pointing_pairs.txt'), path('flagged_tiles.txt')
     
 
     script:

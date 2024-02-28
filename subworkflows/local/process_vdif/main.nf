@@ -51,7 +51,7 @@ workflow PROCESS_VDIF {
         //
         LOCATE_VDIF_FILES (
             source,
-            pointings_dir,
+            pointings_dir.first(),
             duration
         ).set { vcsbeam_tuple }
     } else {
@@ -103,7 +103,7 @@ workflow PROCESS_VDIF {
         } else if (!skip_beamforming) {
             PUBLISH_VCSBEAM_FILES (
                 vcsbeam_tuple,
-                pointings_dir,
+                pointings_dir.first(),
                 duration
             )
         }

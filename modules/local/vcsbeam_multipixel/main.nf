@@ -10,7 +10,7 @@ process VCSBEAM_MULTIPIXEL {
     maxRetries 1
 
     input:
-    val(sources)
+    tuple val(pointings), val(pairs), val(flagged_tiles)
     val(pointings_dir)
     val(data_dir)
     val(duration)
@@ -19,9 +19,6 @@ process VCSBEAM_MULTIPIXEL {
     val(obs_metafits)
     val(cal_metafits)
     val(cal_solution)
-    val(flagged_tiles)
-    val(pointings)
-    val(pairs)
 
     output:
     val(true)
@@ -43,8 +40,8 @@ process VCSBEAM_MULTIPIXEL {
         -R NONE -U 0,0 -O -X --smart -p
     echo "\$(date): Finished executing make_mwa_tied_array_beam."
 
-    # Turn the Nextflow list into a Bash array
-    eval "pulsars=(\$(echo ${sources} | sed 's/\\[//;s/\\]//;s/,/ /g'))"
+    # Get list of sources
+    eval "pulsars=(\$(cat ${pairs} | awk '{print \$1}'))"
 
     # Organise files by pointing using the specified globs
     for (( i=0; i<\${#pulsars[@]}; i++ )); do
