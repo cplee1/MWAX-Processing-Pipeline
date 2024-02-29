@@ -17,7 +17,7 @@ process LOCATE_VDIF_FILES {
         exit 1
     fi
     find \$vdif_dir -type f -name "*.vdif" -exec ln -s '{}' \\;
-    find \$vdif_dir -type f -name "*.hdr" -exec ln -s '{}' \\;
+    find \$vdif_dir -type f -name "*[0-9].hdr" -exec ln -s '{}' \\;
 
     if [[ -d \${vdif_dir}/dspsr ]]; then
         old_dspsr_files=\$(find \${vdif_dir}/dspsr -type f)
