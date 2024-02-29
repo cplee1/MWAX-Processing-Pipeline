@@ -51,7 +51,7 @@ workflow PROCESS_VDIF {
         //
         LOCATE_VDIF_FILES (
             source,
-            pointings_dir.first(),
+            pointings_dir,
             duration
         ).set { vcsbeam_tuple }
     } else {
@@ -74,14 +74,14 @@ workflow PROCESS_VDIF {
 
         VCSBEAM (
             pointing_tuple,
-            data_dir.first(),
+            data_dir,
             duration,
             begin,
             low_chan,
-            obs_metafits.first(),
-            cal_metafits.first(),
-            cal_solution.first(),
-            PARSE_TILE_FLAGS.out.flagged_tiles.first()
+            obs_metafits,
+            cal_metafits,
+            cal_solution,
+            PARSE_TILE_FLAGS.out.flagged_tiles
         ).set { vcsbeam_tuple }
     }
 
@@ -103,7 +103,7 @@ workflow PROCESS_VDIF {
         } else if (!skip_beamforming) {
             PUBLISH_VCSBEAM_FILES (
                 vcsbeam_tuple,
-                pointings_dir.first(),
+                pointings_dir,
                 duration
             )
         }
@@ -115,7 +115,7 @@ workflow PROCESS_VDIF {
         )
         DSPSR (
             GET_EPHEMERIS.out,
-            pointings_dir.first(),
+            pointings_dir,
             duration,
             num_chan,
             nbin,
@@ -125,7 +125,7 @@ workflow PROCESS_VDIF {
         if (!nosearch) {
             PDMP (
                 DSPSR.out,
-                pointings_dir.first(),
+                pointings_dir,
                 duration,
                 pdmp_mc,
                 pdmp_ms
