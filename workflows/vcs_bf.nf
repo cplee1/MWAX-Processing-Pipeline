@@ -103,7 +103,7 @@ workflow VCS_BF {
         CREATE_DATA_DIRECTORIES (
             params.fits,
             params.vdif,
-            CHECK_OBS_DIRECTORY.out.pointings_dir.first(),
+            CHECK_OBS_DIRECTORY.out.pointings_dir,
             sources,
             compute_duration(
                 params.obsid,
@@ -138,8 +138,8 @@ workflow VCS_BF {
             PROCESS_PSRFITS (
                 sources,
                 is_pointing,
-                CREATE_DATA_DIRECTORIES.out.pointings_dir.first(),
-                CHECK_OBS_DIRECTORY.out.data_dir.first(),
+                CREATE_DATA_DIRECTORIES.out.pointings_dir,
+                CHECK_OBS_DIRECTORY.out.data_dir,
                 compute_duration (
                     params.obsid,
                     params.offset,
@@ -152,9 +152,9 @@ workflow VCS_BF {
                 params.low_chan,
                 params.num_chan,
                 params.flagged_tiles,
-                obs_metafits.first(),
-                cal_metafits.first(),
-                cal_solution.first(),
+                obs_metafits,
+                cal_metafits,
+                cal_solution,
                 params.skip_bf,
                 params.ephemeris_dir,
                 params.force_psrcat,
