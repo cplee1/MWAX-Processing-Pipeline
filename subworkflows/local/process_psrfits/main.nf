@@ -64,7 +64,7 @@ workflow PROCESS_PSRFITS {
         }
 
         COMBINE_POINTINGS (
-            pointing_files.collate(5),
+            pointing_files.collate(4),
             cal_metafits,
             flagged_tiles
         )
