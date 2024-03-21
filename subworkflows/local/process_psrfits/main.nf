@@ -82,7 +82,7 @@ workflow PROCESS_PSRFITS {
         )
 
         LOCATE_PSRFITS_FILES (
-            VCSBEAM.out,
+            VCSBEAM.out.first(),
             source,
             pointings_dir,
             duration

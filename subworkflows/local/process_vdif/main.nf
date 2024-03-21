@@ -81,7 +81,7 @@ workflow PROCESS_VDIF {
             obs_metafits,
             cal_metafits,
             cal_solution,
-            PARSE_TILE_FLAGS.out.flagged_tiles
+            PARSE_TILE_FLAGS.out.flagged_tiles.first()
         ).set { vcsbeam_tuple }
     }
 

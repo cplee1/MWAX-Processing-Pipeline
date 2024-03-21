@@ -122,9 +122,9 @@ workflow VCS_BF {
                 params.calid
             )
 
-            obs_metafits = GET_CALIBRATION_SOLUTION.out.obsmeta
-            cal_metafits = GET_CALIBRATION_SOLUTION.out.calmeta
-            cal_solution = GET_CALIBRATION_SOLUTION.out.calsol
+            obs_metafits = GET_CALIBRATION_SOLUTION.out.obsmeta.first()
+            cal_metafits = GET_CALIBRATION_SOLUTION.out.calmeta.first()
+            cal_solution = GET_CALIBRATION_SOLUTION.out.calsol.first()
         } else {
             obs_metafits = Channel.empty()
             cal_metafits = Channel.empty()
@@ -138,8 +138,8 @@ workflow VCS_BF {
             PROCESS_PSRFITS (
                 sources,
                 is_pointing,
-                CREATE_DATA_DIRECTORIES.out.pointings_dir,
-                CHECK_OBS_DIRECTORY.out.data_dir,
+                CREATE_DATA_DIRECTORIES.out.pointings_dir.first(),
+                CHECK_OBS_DIRECTORY.out.data_dir.first(),
                 compute_duration (
                     params.obsid,
                     params.offset,
@@ -175,8 +175,8 @@ workflow VCS_BF {
             PROCESS_VDIF (
                 sources.collect(),
                 is_pointing,
-                CREATE_DATA_DIRECTORIES.out.pointings_dir,
-                CHECK_OBS_DIRECTORY.out.data_dir,
+                CREATE_DATA_DIRECTORIES.out.pointings_dir.first(),
+                CHECK_OBS_DIRECTORY.out.data_dir.first(),
                 compute_duration (
                     params.obsid,
                     params.offset,
