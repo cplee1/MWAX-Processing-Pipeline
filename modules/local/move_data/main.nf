@@ -25,8 +25,18 @@ process MOVE_DATA {
         mkdir -p -m 771 ${vcs_dir}/${obsid_to_move}/combined
 
         # Move data
-        mv ${asvo_dir}/${jobid}/*.sub ${vcs_dir}/${obsid_to_move}/combined
-        mv ${asvo_dir}/${jobid}/*.metafits ${vcs_dir}/${obsid_to_move}
+
+        if [ -e ${asvo_dir}/${jobid}/*.sub ]; then
+            mv ${asvo_dir}/${jobid}/*.sub ${vcs_dir}/${obsid_to_move}/combined
+        fi
+
+        if [ -e ${asvo_dir}/${jobid}/*.dat ]; then
+            mv ${asvo_dir}/${jobid}/*.dat ${vcs_dir}/${obsid_to_move}/combined
+        fi
+
+        if [ -e ${asvo_dir}/${jobid}/*.metafits ]; then
+            mv ${asvo_dir}/${jobid}/*.metafits ${vcs_dir}/${obsid_to_move}
+        fi
         
         # Delete the job directory
         if [[ -d ${asvo_dir}/${jobid} ]]; then
