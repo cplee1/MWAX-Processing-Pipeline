@@ -18,16 +18,13 @@ workflow PROCESS_VDIF {
     take:
     sources          //      list: pulsar names or ra_decs
     is_pointing      //   boolean: whether the input is a pointing
-    pointings_dir    // directory: /path/to/<obsid>/pointings
-    data_dir         // directory: /path/to/<obsid>/combined
+    obs_dirs         //      dict: containing paths of data and pointings dirs
+    cal_files        //      dict: containing paths of obs_meta, cal_meta, cal_sol
     duration         //   integer: length of data to beamform
     begin            //   integer: GPS start time of data to beamform
     low_chan         //   integer: lowest coarse channel index
     num_chan         //   integer: number of coarse channels
     flagged_tiles    //    string: space separated list of tiles to flag
-    obs_metafits     //      file: /path/to/<obsid>.metafits
-    cal_metafits     //      file: /path/to/<calid>.metafits
-    cal_solution     //      file: /path/to/<calsol>.bin
     skip_beamforming //   boolean: whether to skip beamforming
     ephemeris_dir    // directory: contains Jname.par files to override PSRCAT
     force_psrcat     //   boolean: whether to force using PSRCAT ephemeris
@@ -51,7 +48,7 @@ workflow PROCESS_VDIF {
         //
         LOCATE_VDIF_FILES (
             source,
-            pointings_dir,
+            obs_dirs.pointings,
             duration
         ).set { vcsbeam_tuple }
     } else {
@@ -68,20 +65,18 @@ workflow PROCESS_VDIF {
 
         // TODO: parse convert_rts_flags
         PARSE_TILE_FLAGS (
-            cal_metafits,
+            cal_files.cal_meta,
             flagged_tiles,
         )
 
         VCSBEAM (
             pointing_tuple,
-            data_dir,
+            obs_dirs.data,
             duration,
             begin,
             low_chan,
-            obs_metafits,
-            cal_metafits,
-            cal_solution,
-            PARSE_TILE_FLAGS.out.flagged_tiles.first()
+            cal_files,
+            PARSE_TILE_FLAGS.out
         ).set { vcsbeam_tuple }
     }
 
@@ -103,7 +98,7 @@ workflow PROCESS_VDIF {
         } else if (!skip_beamforming) {
             PUBLISH_VCSBEAM_FILES (
                 vcsbeam_tuple,
-                pointings_dir,
+                obs_dirs.pointings,
                 duration
             )
         }
@@ -115,7 +110,7 @@ workflow PROCESS_VDIF {
         )
         DSPSR (
             GET_EPHEMERIS.out,
-            pointings_dir,
+            obs_dirs.pointings,
             duration,
             num_chan,
             nbin,
@@ -125,7 +120,7 @@ workflow PROCESS_VDIF {
         if (!nosearch) {
             PDMP (
                 DSPSR.out,
-                pointings_dir,
+                obs_dirs.pointings,
                 duration,
                 pdmp_mc,
                 pdmp_ms

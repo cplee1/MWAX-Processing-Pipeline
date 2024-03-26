@@ -5,9 +5,7 @@ process GET_CALIBRATION_SOLUTION {
     val(calid)
 
     output:
-    env(obsmeta), emit: obsmeta
-    env(calmeta), emit: calmeta
-    env(calsol), emit: calsol
+    tuple env(obsmeta), env(calmeta), env(calsol)
 
     script:
     if ( params.use_default_sol ) {

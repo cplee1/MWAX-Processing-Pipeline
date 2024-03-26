@@ -2,8 +2,7 @@
 // Download from ASVO, beamform, fold, search, plot, and upload to Acacia
 //
 
-include { CHECK_OBS_DIRECTORY      } from '../modules/local/check_obs_directory'
-include { CREATE_DATA_DIRECTORIES  } from '../modules/local/create_data_directories'
+include { CREATE_DIR_STRUCTURE     } from '../modules/local/create_dir_structure'
 include { GET_CALIBRATION_SOLUTION } from '../modules/local/get_calibration_solution'
 
 include { GET_VCS_DATA             } from '../subworkflows/local/get_vcs_data'
@@ -72,45 +71,42 @@ workflow VCS_BF {
         //
         if (params.psrs != null) {
             Channel
-                .from(params.psrs.split(' '))
+                .value(params.psrs.split(' '))
                 .set { sources }
         } else if (params.pointings != null) {
             Channel
-                .from(params.pointings.split(' '))
+                .value(params.pointings.split(' '))
                 .set { sources }
         } else if (params.pointings_file != null) {
             Channel
                 .fromPath(params.pointings_file)
                 .splitCsv()
-                .flatten()
+                .first()
                 .set { sources }
         } else {
             System.err.println('ERROR: No pulsars or pointings specified')
         }
 
         //
-        // Check that the obs ID directory and subdirectories exist
+        // Check observation directory and create sub-directories
         //
-        CHECK_OBS_DIRECTORY (
+        CREATE_DIR_STRUCTURE (
             files_ready,
             params.vcs_dir,
-            params.obsid
-        )
-
-        //
-        // Create dataproduct directories or backup existing data
-        //
-        CREATE_DATA_DIRECTORIES (
-            params.fits,
-            params.vdif,
-            CHECK_OBS_DIRECTORY.out.pointings_dir,
-            sources,
-            compute_duration(
+            params.obsid,
+            compute_duration (
                 params.obsid,
                 params.offset,
                 params.duration
-            )
+            ),
+            params.fits,
+            params.vdif,
+            sources
         )
+
+        obs_dirs = CREATE_DIR_STRUCTURE.out
+            .map { ['data':it[0], 'pointings':it[1]] }
+            .first()
 
         if (params.calid != null) {
             //
@@ -122,13 +118,11 @@ workflow VCS_BF {
                 params.calid
             )
 
-            obs_metafits = GET_CALIBRATION_SOLUTION.out.obsmeta.first()
-            cal_metafits = GET_CALIBRATION_SOLUTION.out.calmeta.first()
-            cal_solution = GET_CALIBRATION_SOLUTION.out.calsol.first()
+            cal_files = GET_CALIBRATION_SOLUTION.out
+                .map { ['obs_meta':it[0], 'cal_meta':it[1], 'cal_sol':it[2]] }
+                .first()
         } else {
-            obs_metafits = Channel.empty()
-            cal_metafits = Channel.empty()
-            cal_solution = Channel.empty()
+            cal_files = Channel.empty()
         }
 
         if (params.fits) {
@@ -138,8 +132,8 @@ workflow VCS_BF {
             PROCESS_PSRFITS (
                 sources,
                 is_pointing,
-                CREATE_DATA_DIRECTORIES.out.pointings_dir.first(),
-                CHECK_OBS_DIRECTORY.out.data_dir.first(),
+                obs_dirs,
+                cal_files,
                 compute_duration (
                     params.obsid,
                     params.offset,
@@ -152,9 +146,6 @@ workflow VCS_BF {
                 params.low_chan,
                 params.num_chan,
                 params.flagged_tiles,
-                obs_metafits,
-                cal_metafits,
-                cal_solution,
                 params.skip_bf,
                 params.ephemeris_dir,
                 params.force_psrcat,
@@ -173,10 +164,10 @@ workflow VCS_BF {
             // Beamform and search VDIF
             //
             PROCESS_VDIF (
-                sources.collect(),
+                sources,
                 is_pointing,
-                CREATE_DATA_DIRECTORIES.out.pointings_dir.first(),
-                CHECK_OBS_DIRECTORY.out.data_dir.first(),
+                obs_dirs,
+                cal_files,
                 compute_duration (
                     params.obsid,
                     params.offset,
@@ -189,9 +180,6 @@ workflow VCS_BF {
                 params.low_chan,
                 params.num_chan,
                 params.flagged_tiles,
-                obs_metafits,
-                cal_metafits,
-                cal_solution,
                 params.skip_bf,
                 params.ephemeris_dir,
                 params.force_psrcat,

@@ -5,8 +5,7 @@ process DSPSR {
 
     tag "${psr}"
 
-    time { 4.hour * task.attempt }
-
+    time { 10.hour * task.attempt }
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'ignore' }
     maxRetries 2
 

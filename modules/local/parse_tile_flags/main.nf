@@ -4,7 +4,7 @@ process PARSE_TILE_FLAGS {
     val(flagged_tiles)
 
     output:
-    path('flagged_tiles.txt'), emit: flagged_tiles
+    path('flagged_tiles.txt')
 
     script:
     if ( params.convert_rts_flags ) {

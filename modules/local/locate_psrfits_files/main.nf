@@ -2,7 +2,6 @@ process LOCATE_PSRFITS_FILES {
     tag "${source}"
 
     input:
-    val(ready)
     val(source)
     val(pointings_dir)
     val(duration)

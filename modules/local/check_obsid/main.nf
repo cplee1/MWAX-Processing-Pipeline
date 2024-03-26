@@ -5,7 +5,7 @@ process CHECK_OBSID {
     val(obsid)
 
     output:
-    val(true)
+    val(obsid)
 
     script:
     """

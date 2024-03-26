@@ -16,16 +16,13 @@ workflow PROCESS_PSRFITS {
     take:
     sources          //      list: pulsar names or ra_decs
     is_pointing      //   boolean: whether the input is a pointing
-    pointings_dir    // directory: /path/to/<obsid>/pointings
-    data_dir         // directory: /path/to/<obsid>/combined
+    obs_dirs         //      dict: containing data dir and pointings dir
+    cal_files        //      dict: containing paths of obs_meta, cal_meta, cal_sol
     duration         //   integer: length of data to beamform
     begin            //   integer: GPS start time of data to beamform
     low_chan         //   integer: lowest coarse channel index
     num_chan         //   integer: number of coarse channels
     flagged_tiles    //    string: space separated list of tiles to flag
-    obs_metafits     //      file: /path/to/<obsid>.metafits
-    cal_metafits     //      file: /path/to/<calid>.metafits
-    cal_solution     //      file: /path/to/<calsol>.bin
     skip_beamforming //   boolean: whether to skip beamforming
     ephemeris_dir    // directory: contains Jname.par files to override PSRCAT
     force_psrcat     //   boolean: whether to force using PSRCAT ephemeris
@@ -48,7 +45,7 @@ workflow PROCESS_PSRFITS {
         LOCATE_PSRFITS_FILES (
             true,
             source,
-            pointings_dir,
+            obs_dirs.pointings,
             duration
         ).set { vcsbeam_tuple }
     } else {
@@ -64,27 +61,29 @@ workflow PROCESS_PSRFITS {
         }
 
         COMBINE_POINTINGS (
-            pointing_files.collate(4),
-            cal_metafits,
+            pointing_files.collate(4), // Max 4 beams
+            cal_files.cal_meta,
             flagged_tiles
         )
 
         VCSBEAM (
             COMBINE_POINTINGS.out,
-            pointings_dir,
-            data_dir,
+            obs_dirs.pointings,
+            obs_dirs.data,
             duration,
             begin,
             low_chan,
-            obs_metafits,
-            cal_metafits,
-            cal_solution
+            cal_files
         )
 
+        VCSBEAM.out
+            .splitCsv(sep: ' ')
+            .map { row -> row[0] }
+            .set { beamformed_sources }
+
         LOCATE_PSRFITS_FILES (
-            VCSBEAM.out.first(),
-            source,
-            pointings_dir,
+            beamformed_sources,
+            obs_dirs.pointings,
             duration
         ).set { vcsbeam_tuple }
     }
@@ -114,7 +113,7 @@ workflow PROCESS_PSRFITS {
 
         PREPFOLD (
             GET_EPHEMERIS.out,
-            pointings_dir,
+            obs_dirs.pointings,
             duration,
             num_chan,
             nbin,

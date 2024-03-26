@@ -4,10 +4,12 @@ process VCSBEAM_MULTIPIXEL {
 
     maxForks 3
 
-    time { 8.hour * task.attempt }
-
-    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
-    maxRetries 1
+    time 23.hour
+    errorStrategy 'finish'
+    
+    // time { 8.hour * task.attempt }
+    // errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
+    // maxRetries 2
 
     input:
     tuple val(pointings), val(pairs), val(flagged_tiles)
@@ -16,27 +18,25 @@ process VCSBEAM_MULTIPIXEL {
     val(duration)
     val(begin)
     val(low_chan)
-    val(obs_metafits)
-    val(cal_metafits)
-    val(cal_solution)
+    val(cal_files)
 
     output:
-    val(true)
+    val(pairs)
 
     script:
     """
     make_mwa_tied_array_beam -V
     echo "\$(date): Executing make_mwa_tied_array_beam."
     srun make_mwa_tied_array_beam \\
-        -m ${obs_metafits} \\
+        -m ${cal_files.obs_meta} \\
         -b ${begin} \\
         -T ${duration} \\
         -f ${low_chan} \\
         -d ${data_dir} \\
         -P ${pointings} \\
         -F ${flagged_tiles} \\
-        -c ${cal_metafits} \\
-        -C ${cal_solution} \\
+        -c ${cal_files.cal_meta} \\
+        -C ${cal_files.cal_sol} \\
         -R NONE -U 0,0 -O -X --smart -p
     echo "\$(date): Finished executing make_mwa_tied_array_beam."
 

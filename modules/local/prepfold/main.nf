@@ -5,8 +5,7 @@ process PREPFOLD {
 
     tag "${psr}"
 
-    time 5.hour
-
+    time 6.hour
     errorStrategy { task.attempt == 1 ? 'retry' : 'ignore' }
     maxRetries 1
 

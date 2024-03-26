@@ -39,16 +39,17 @@ workflow GET_CAL_DATA {
 
     // Check that the obs ID(s) inferred from the metafits are valid
     CHECK_OBSID ( CHECK_ASVO_JOB_FILES.out )
+        .map { it -> [it, "none"]}
+        .set { obsid_tuple }
 
     // Move the data into the standard directory structure
     MOVE_DATA (
-        CHECK_OBSID.out,
         jobid,
         vcs_dir,
         asvo_dir,
         obsid,
-        CHECK_ASVO_JOB_FILES.out,
-        'vis'
+        'vis',
+        obsid_tuple
     ).set { ready }
 
     emit:
