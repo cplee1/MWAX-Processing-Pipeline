@@ -43,7 +43,6 @@ workflow PROCESS_PSRFITS {
         // Stage in the published beamformed files
         //
         LOCATE_PSRFITS_FILES (
-            true,
             source,
             obs_dirs.pointings,
             duration
