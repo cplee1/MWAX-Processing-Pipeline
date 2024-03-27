@@ -12,7 +12,6 @@
 
 module use /pawsey/mwa/software/python3/modulefiles
 module load hyperdrive
-module load srclists
 module list
 hyperdrive -V
 
@@ -35,7 +34,8 @@ srclist_base=/pawsey/mwa/software/python3/mwa-reduce/mwa-reduce-git/models
 if [[ -z $srclist_target ]]; then
     # Create a list of 1000 sources from the standard puma catalogue
     srclist=srclist_1000.yaml
-    catalogue_srclist=${SRCLISTS_DIR}/srclist_pumav3_EoR0aegean_fixedEoR1pietro+ForA_phase1+2.txt
+    # GLEAM-X Galactic Sky Model
+    catalogue_srclist=/software/projects/mwavcs/GGSM_updated_2023Oct23.txt
 
     hyperdrive srclist-by-beam \
         --metafits ../*.metafits \

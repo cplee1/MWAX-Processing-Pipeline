@@ -37,7 +37,7 @@ if [[ -z $srclist_target ]]; then
     # Create a list of 1000 sources from a catalogue
     srclist=srclist_1000.yaml
     # GLEAM-X
-    catalogue_srclist=/astro/mwavcs/cplee/remote_backup/source_lists/GGSM_updated.txt
+    catalogue_srclist=/software/projects/mwavcs/GGSM_updated_2023Oct23.txt
 
     hyperdrive srclist-by-beam \
         -n 1000 \
