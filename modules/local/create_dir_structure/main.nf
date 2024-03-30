@@ -6,6 +6,7 @@ process CREATE_DIR_STRUCTURE {
     val(duration)
     val(do_fits)
     val(do_vdif)
+    val(skip_bf)
     val(sources)
 
     output:
@@ -28,6 +29,12 @@ process CREATE_DIR_STRUCTURE {
         exit 1
     fi
 
+    if [[ \$(find ${vcs_dir}/${obsid}/combined -type f -name "*.sub" | wc -l) -lt 1 && \\
+        \$(find ${vcs_dir}/${obsid}/combined -type f -name "*.dat" | wc -l) -lt 1 ]]; then
+        echo "ERROR :: Data files cannot be found: ${vcs_dir}/${obsid}/combined"
+        exit 1
+    fi
+
     data_dir="${vcs_dir}/${obsid}/combined"
     pointings_dir="${vcs_dir}/${obsid}/pointings"
 
@@ -40,7 +47,7 @@ process CREATE_DIR_STRUCTURE {
                 mkdir -p -m 771 \$psrfits_dir
             fi
             old_psrfits_files=\$(find \$psrfits_dir -type f)
-            if [[ -n \$old_psrfits_files ]]; then
+            if [[ -n "\$old_psrfits_files" && "${skip_bf}" != "true" ]]; then
                 psrfits_archive="\${psrfits_dir}/beamformed_data_archived_\$(date +%s)"
                 mkdir -p -m 771 \$psrfits_archive
                 echo \$old_psrfits_files | xargs -n1 mv -t \$psrfits_archive
@@ -53,7 +60,7 @@ process CREATE_DIR_STRUCTURE {
                 mkdir -p -m 771 \$vdif_dir
             fi
             old_vdif_files=\$(find \$vdif_dir -type f)
-            if [[ -n \$old_vdif_files ]]; then
+            if [[ -n "\$old_vdif_files" && "${skip_bf}" != "true" ]]; then
                 vdif_archive="\${vdif_dir}/beamformed_data_archived_\$(date +%s)"
                 mkdir -p -m 771 \$vdif_archive
                 echo \$old_vdif_files | xargs -n1 mv -t \$vdif_archive

@@ -1,57 +1,63 @@
 process ASVO_VCS_DOWNLOAD {
-    label 'giant_squid'
-    
     tag "${obsid}"
-
-    time 2.day
-    maxRetries 5
 
     errorStrategy {
         if ( task.exitStatus == 75 ) {
-            wait_hours = Math.pow(2, task.attempt - 1 as int)
-            log.info("Sleeping for ${wait_hours} hours and retrying task ${task.hash}")
-            sleep(wait_hours * 60 * 60 * 1000 as long)
-            return 'retry'
+            log.info("ASVO jobs are not ready. Exiting.")
+            return 'ignore'
+        } else {
+            log.info("Task ${task.hash} failed with code ${task.exitStatus}. Exiting.")
+            return 'terminate'
         }
-        log.info("task ${task.hash} failed with code ${task.exitStatus}")
-        return 'ignore'
     }
 
     input:
     val(obsid)
     val(offset)
     val(duration)
+    val(num_jobs)
 
     output:
-    env(jobid), emit: jobid
-    env(fpath), emit: path
+    path('ready.tsv')
 
     script:
     """
     export MWA_ASVO_API_KEY="${params.asvo_api_key}"
 
-    # Submit job and supress failure if job already exists
-    ${params.giant_squid} submit-volt -v -w \\
-        --delivery scratch \\
-        --offset ${offset} \\
-        --duration ${duration} \\
-        ${obsid} \\
-        || true
+    dur_per_job_float=\$(echo "${duration} / ${num_jobs}" | bc -l)
+    if [[ \$(echo "\$dur_per_job_float % 1 == 0" | bc ) != 1 ]]; then
+        echo "Error: ${duration} cannot be cleanly divided by ${num_jobs}."
+        exit 1
+    fi
 
-    ${params.giant_squid} list -j \\
+    dur_per_job=\$(( ${duration} / ${num_jobs} ))
+    for ((i = 0; i < ${num_jobs}; i++)); do
+        # Compute offset for job
+        offset=\$(( ${offset} + \$dur_per_job * i ))
+
+        # Submit job and supress failure if job already exists    
+        singularity exec ${params.giant_squid} submit-volt -v \\
+            --delivery scratch \\
+            --offset \$offset \\
+            --duration \$dur_per_job \\
+            -- ${obsid} \\
+            || true
+    done
+
+    singularity exec ${params.giant_squid} list -j \\
         --types DownloadVoltage \\
         --states Ready \\
         -- ${obsid} \\
         | tee /dev/stderr \\
-        | ${params.jq} -r '.[]|[.jobId,.files[0].filePath//"",.files[0].fileSize//""]|@tsv' \\
+        | ${params.jq} -r '.[]|[.jobId,.files[0].filePath//"",.files[0].fileSize//""]|@csv' \\
         | sort -r \\
         | tee ready.tsv
 
-    if read -r jobid fpath fsize < ready.tsv; then
-        echo "Job \${jobid} is ready in directory \${fpath}."
-    else
-        echo "No jobs are ready."
+    if [[ \$(cat ready.tsv | wc -l) != ${num_jobs} ]]; then
+        echo "Not all jobs are ready. Try again later."
         exit 75
     fi
+
+    exit 0
     """
 }

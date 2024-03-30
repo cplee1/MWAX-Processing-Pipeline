@@ -6,7 +6,7 @@ process CHECK_DATA_FORMAT {
     val(obsid)
 
     output:
-    tuple val(obsid), path("${obsid}_dir.txt")
+    path("${obsid}_dir.txt")
 
     script:
     """

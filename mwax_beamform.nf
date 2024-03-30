@@ -52,15 +52,15 @@ def help_message() {
         |
         |   Download options:
         |   --download
-        |       Download before beamforming
+        |       Download before beamforming.
         |   --download_only
-        |       Download and then exit the pipeline
+        |       Download and then exit the pipeline.
+        |   --num_dl_jobs
+        |       Number of ASVO jobs to split the VCS download into.
+        |       [default: ${params.num_dl_jobs}]
         |   --asvo_api_key <ASVO_API_KEY>
         |       API key corresponding to the user's ASVO account.
         |       [default: ${params.asvo_api_key}]
-        |   --asvo_id_obs <ASVO_ID_OBS>
-        |       ASVO job ID of the downloaded VCS observation.
-        |       [no default]
         |
         |   Frequency setup options:
         |   --low_chan <LOW_CHAN>
@@ -139,9 +139,6 @@ def help_message() {
         |       The Nextflow work directory. Delete the directory once the
         |       process is finished.
         |       [default: ${workDir}]
-        |   --asvo_dir <ASVO_DIR>
-        |       Path to where ASVO downloads are stored.
-        |       [default: ${params.asvo_dir}]
         |   --vcs_dir <VCS_DIR>
         |       Path to where VCS data files will be stored.
         |       [default: ${params.vcs_dir}]
@@ -154,23 +151,23 @@ def help_message() {
         |   Examples:
         |
         |   1. Downloading an observation then beamforming in PSRFITS format
-        |   mwax_beamform.nf --download --obsid 1372184672 --duration 592 --offset 0
+        |   mwax_beamform.nf --download --obsid 1372184672 --duration 600 --offset 0
         |                    --low_chan 109 --num_chan 24 --fits
         |                    --calid 1372184552 --use_default_sol
         |                    --psrs "J2039-3616 J2124-3358 J2241-5236"
         |
         |   2. Same as (1) but using VDIF format and providing pointings
-        |   mwax_beamform.nf --download --obsid 1372184672 --duration 592 --offset 0
+        |   mwax_beamform.nf --download --obsid 1372184672 --duration 600 --offset 0
         |                    --low_chan 109 --num_chan 24 --vdif
         |                    --calid 1372184552 --use_default_sol
         |                    --pointings "20:39:16.6_-36:16:17 21:24:43.84_-33:58:45.01"
         |
         |   3. Re-folding beamformed data
-        |   mwax_beamform.nf --obsid 1372184672 --duration 592 --fits --skip_bf
+        |   mwax_beamform.nf --obsid 1372184672 --duration 600 --fits --skip_bf
         |                    --psrs "J2039-3616 J2124-3358 J2241-5236"
         |
         |   4. Downloaded data without beamforming
-        |   mwax_beamform.nf --download_only --obsid 1372184672 --duration 592 --offset 0
+        |   mwax_beamform.nf --download_only --obsid 1372184672 --duration 600 --offset 0
         |
         |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         """.stripMargin()
@@ -221,23 +218,18 @@ include { VCS_BF } from './workflows/vcs_bf'
 
 workflow {
     if (params.download_only) {
-        if (params.obsid == null && params.asvo_id_obs == null) {
+        if (params.obsid == null) {
             System.err.println("ERROR: No downloads requested")
         } else {
-            if (params.obsid != null) {
-                if (params.duration == null) {
-                    System.err.println("ERROR: Observation duration not defined")
-                }
-                if (params.offset == null) {
-                    System.err.println("ERROR: Observation offset not defined")
-                }
-                if (params.duration != null && params.offset != null) {
-                    VCS_BF()
-                }
-            } else {
+            if (params.duration == null) {
+                System.err.println("ERROR: Observation duration not defined")
+            }
+            if (params.offset == null) {
+                System.err.println("ERROR: Observation offset not defined")
+            }
+            if (params.duration != null && params.offset != null) {
                 VCS_BF()
             }
-            
         }
     } else {
         if (params.obsid == null) {

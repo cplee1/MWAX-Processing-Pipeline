@@ -55,13 +55,12 @@ workflow VCS_BF {
             params.obsid,
             params.offset,
             params.duration,
-            params.asvo_id_obs,
-            params.asvo_dir,
-            params.vcs_dir
+            params.vcs_dir,
+            params.num_dl_jobs
         ).set { files_ready }
     } else {
         Channel
-            .of(true)
+            .value(true)
             .set { files_ready }
     }
 
@@ -101,6 +100,7 @@ workflow VCS_BF {
             ),
             params.fits,
             params.vdif,
+            params.skip_bf,
             sources
         )
 
