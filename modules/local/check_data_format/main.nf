@@ -16,7 +16,6 @@ process CHECK_DATA_FORMAT {
     import json
     import csv
 
-
     def get_meta(service, params, retries=3):
         data = urllib.parse.urlencode(params)
 
@@ -42,6 +41,15 @@ process CHECK_DATA_FORMAT {
 
 
     def combined_deleted_check(obsid):
+        # Return True if there are combined archived files available
+        #
+        # Note on file types:
+        #   11 = raw dat
+        #   14 = metafits
+        #   15 = ics dat
+        #   16 = combined tar
+        #   17 = combined sub
+
         params = {"obs_id": obsid, "nocache": 1}
         files_meta = get_meta("data_files", params)
 
@@ -49,36 +57,29 @@ process CHECK_DATA_FORMAT {
             print("No file metadata found")
             sys.exit(1)
 
-        comb_del_check = True
+        combined_archived_data = False
         for file in files_meta:
-            if "combined" in file:
+
+            if files_meta[file]["filetype"] in [16, 17]:
                 deleted = files_meta[file]["deleted"]
                 remote_archived = files_meta[file]["remote_archived"]
                 if remote_archived and not deleted:
-                    comb_del_check = False
+                    combined_archived_data = True
                     break
-        return comb_del_check
+        return combined_archived_data
 
 
     def get_dir_name(obsid):
         params = {"obs_id": obsid}
         obs_meta = get_meta("obs", params)
         comb_del_check = combined_deleted_check(obsid)
-
         data_format = obs_meta["dataquality"]
         vcs_mode = obs_meta["mode"]
 
-        if vcs_mode == "MWAX_VCS":
+        if comb_del_check:
             data_dir = "combined"
-        elif vcs_mode == "VOLTAGE_START":
-            if data_format == 1 or (comb_del_check and data_format == 6):
-                data_dir = "raw"
-            elif data_format == 6:
-                data_dir = "combined"
-            else:
-                print("Error: Cannot determine data format.")
         else:
-            print("Error: Cannot determine VCS mode.")
+            data_dir = "raw"
 
         with open(f"{obsid}_dir.txt", "w") as outfile:
             writer = csv.writer(outfile, delimiter=",")
