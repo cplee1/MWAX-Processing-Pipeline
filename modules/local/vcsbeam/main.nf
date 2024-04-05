@@ -4,14 +4,10 @@ process VCSBEAM {
 
     tag "${psr}"
 
-    maxForks 3
-
-    time 14.hour
-    errorStrategy 'finish'
-
-    // time { 8.hour * task.attempt }
-    // errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
-    // maxRetries 2
+    maxForks 4
+    time "${ params.vcsbeam_min_walltime * task.attempt }h"
+    maxRetries 1
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
 
     input:
     tuple val(psr), val(pointings)
