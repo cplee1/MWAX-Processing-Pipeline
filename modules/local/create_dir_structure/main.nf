@@ -24,15 +24,17 @@ process CREATE_DIR_STRUCTURE {
         exit 1
     fi
 
-    if [[ ! -d ${vcs_dir}/${obsid}/combined ]]; then
-        echo "ERROR :: Data directory does not exist: ${vcs_dir}/${obsid}/combined"
-        exit 1
-    fi
+    if [[ "${skip_bf}" != "true" ]]; then
+        if [[ ! -d ${vcs_dir}/${obsid}/combined ]]; then
+            echo "ERROR :: Data directory does not exist: ${vcs_dir}/${obsid}/combined"
+            exit 1
+        fi
 
-    if [[ \$(find ${vcs_dir}/${obsid}/combined -type f -name "*.sub" | wc -l) -lt 1 && \\
-        \$(find ${vcs_dir}/${obsid}/combined -type f -name "*.dat" | wc -l) -lt 1 ]]; then
-        echo "ERROR :: Data files cannot be found: ${vcs_dir}/${obsid}/combined"
-        exit 1
+        if [[ \$(find -L ${vcs_dir}/${obsid}/combined -type f -name "*.sub" | wc -l) -lt 1 && \\
+            \$(find -L ${vcs_dir}/${obsid}/combined -type f -name "*.dat" | wc -l) -lt 1 ]]; then
+            echo "ERROR :: Data files cannot be found: ${vcs_dir}/${obsid}/combined"
+            exit 1
+        fi
     fi
 
     data_dir="${vcs_dir}/${obsid}/combined"
