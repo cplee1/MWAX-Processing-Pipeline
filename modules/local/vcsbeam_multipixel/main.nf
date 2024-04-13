@@ -1,5 +1,4 @@
 process VCSBEAM_MULTIPIXEL {
-    label 'gpu'
     label 'vcsbeam'
 
     maxForks 4

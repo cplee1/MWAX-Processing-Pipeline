@@ -1,5 +1,4 @@
 process VCSBEAM {
-    label 'gpu'
     label 'vcsbeam'
 
     tag "${psr}"
