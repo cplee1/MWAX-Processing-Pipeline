@@ -80,7 +80,6 @@ workflow VCS_BF {
             Channel
                 .fromPath(params.pointings_file)
                 .splitCsv()
-                .first()
                 .set { sources }
         } else {
             System.err.println('ERROR: No pulsars or pointings specified')
