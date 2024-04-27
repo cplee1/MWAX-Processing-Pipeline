@@ -1,5 +1,5 @@
 process MOVE_VCS_DATA {
-    tag "${obsid_to_move}"
+    tag "${obsid}"
 
     input:
     tuple val(job_id), val(dl_path), val(job_size)
@@ -50,7 +50,7 @@ process MOVE_VCS_DATA {
     fi
 
     # Copy the metafits
-    if [ -r ${dl_path}/${obsid}.metafits && ! -r ${vcs_dir}/${obsid}/${obsid}.metafits ]; then
+    if [[ -r ${dl_path}/${obsid}.metafits && ! -r ${vcs_dir}/${obsid}/${obsid}.metafits ]]; then
         cp ${dl_path}/${obsid}.metafits ${vcs_dir}/${obsid}
     fi
     """
