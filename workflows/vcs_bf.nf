@@ -41,7 +41,7 @@ def compute_duration(obsid, offset, duration) {
         throw new IllegalArgumentException("Duration must be a number")
     }
     def start_time = obsid + offset
-    def end_time = round_down_time_chunk(start_time) + round_down_time_chunk(duration) - 8
+    def end_time = round_down_time_chunk(start_time) + round_down_time_chunk(duration)
 
     return end_time - start_time
 }
