@@ -1,8 +1,8 @@
 process VCSBEAM_MULTIPIXEL {
     label 'vcsbeam'
 
-    maxForks 4
-    time "${ params.vcsbeam_mp_min_walltime * task.attempt }h"
+    maxForks 1
+    time "${ params.vcsbeam_mp_min_walltime + 2 * (task.attempt - 1) }h"
     maxRetries 1
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'finish' }
 
