@@ -9,7 +9,7 @@
 # Required inputs
 #-------------------------------------------------------------------------------
 # location of the template scripts
-script_dir=/scratch/mwavcs/cplee/github/MWAX-Processing-Pipeline/example_scripts
+script_dir=/software/projects/mwavcs/cplee/src/MWAX-Processing-Pipeline/example_scripts
 #===============================================================================
 
 # Only run Birli if UVFITS files cannot be found
