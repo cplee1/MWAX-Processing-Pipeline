@@ -53,5 +53,8 @@ process MOVE_VCS_DATA {
     if [[ -r ${dl_path}/${obsid}.metafits && ! -r ${vcs_dir}/${obsid}/${obsid}.metafits ]]; then
         cp ${dl_path}/${obsid}.metafits ${vcs_dir}/${obsid}
     fi
+    if [[ -r ${dl_path}/${obsid}_metafits_ppds.fits && ! -r ${vcs_dir}/${obsid}_metafits_ppds.fits ]]; then
+        cp ${dl_path}/${obsid}_metafits_ppds.fits ${vcs_dir}/${obsid}
+    fi
     """
 }
