@@ -20,7 +20,7 @@ process GET_POINTINGS {
     # Determine a unique glob for each pointing
     IFS=':' read -r raj_hours raj_minutes raj_seconds <<< "\$RAJ"
     IFS=':' read -r decj_degrees decj_minutes decj_seconds <<< "\$DECJ"
-    pointing_glob="*\$raj_hours:\$raj_minutes:*\$decj_degrees:\$decj_minutes:*"
+    pointing_glob="*\$raj_hours:\$raj_minutes:*\${decj_degrees#-}:\$decj_minutes*"
     
     # Write Jname and individual coordinates to file
     echo "\$RAJ \$DECJ ${psr} \$pointing_glob" | tee pointings_${task.index}.txt
