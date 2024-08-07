@@ -51,9 +51,6 @@ process DSPSR {
         if [ ! -s \$datafile_hdr ]; then
             echo "Error: Invalid hdr file \'\${datafile_hdr}\'. Skipping file."
         else
-            new_datafile_hdr="\${datafile_hdr%%.hdr}_updated.hdr"
-            cat \$datafile_hdr | tr -c -d '[:print:]\\n\\t' > \$new_datafile_hdr
-            printf "NPOL 2\\n" >> \$new_datafile_hdr
             datafile_vdif=\${datafile_hdr%%.hdr}.vdif
             if [ ! -s \$datafile_vdif ]; then
                 echo "Error: Invalid vdif file \'\${datafile_vdif}\'. Skipping file."
@@ -67,7 +64,7 @@ process DSPSR {
                     -F ${fine_chan}:D \\
                     -L ${tint} -A \\
                     -O \$outfile \\
-                    \$new_datafile_hdr
+                    \$datafile_hdr
             fi
         fi
     done
