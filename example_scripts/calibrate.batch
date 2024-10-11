@@ -67,6 +67,7 @@ fi
 # Perform DI calibration
 # If necessary, flag tiles with --tile-flags <Tile1> <Tile2> ... <TileN>)
 hyperdrive di-calibrate \
+    --max-iterations 500 \
     --source-list $srclist \
     --data ../${obsid}_birli.uvfits ../*.metafits \
     --fine-chan-flags-per-coarse-chan 0 1 30 31
