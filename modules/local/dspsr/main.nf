@@ -101,7 +101,7 @@ process DSPSR {
     old_files=\$(find \$dataproduct_dir -type f -name "*.vdif")
     if [[ -z \$old_files ]]; then
         # Copy VDIF/HDR files into the publish directory and delete from the work directory
-        mv *_updated.hdr \${dataproduct_dir}
+        cp -L *.hdr \${dataproduct_dir}
         cat vdiffiles.txt | xargs -n1 cp -L -t \$dataproduct_dir
         cat vdiffiles.txt | xargs -n1 readlink -f | xargs -n1 rm
         cat headers.txt | xargs -n1 cp -L -t \$dataproduct_dir
