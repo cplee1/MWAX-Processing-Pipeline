@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node=36
 #SBATCH --mem=370gb
 #SBATCH --partition=workq
-#SBATCH --time=01:00:00
+#SBATCH --time=04:00:00
 #SBATCH --tmp=440G
 #SBATCH --export=NONE
 
@@ -23,13 +23,18 @@ tres=2   # desired time resolution in seconds for cal. UVFITS
 mfits=$(basename -- "$(ls ../*.metafits)")
 obsid="${mfits%.*}"
 
+# Dont fail if no files match glob
+shopt -s nullglob
+
 # Make the downsampled uvfits data
 birli \
     --metafits ../*.metafits \
     --uvfits-out /nvmetmp/${obsid}_birli.uvfits \
     --avg-time-res ${tres} \
     --avg-freq-res ${fres} \
-    ../*ch???*.fits
+    ../*gpubox*.fits ../*ch???*.fits
+
+shopt -u nullglob
 
 # Copy the data from the nvme to the cal directory
 cp /nvmetmp/${obsid}_birli*.uvfits ..
