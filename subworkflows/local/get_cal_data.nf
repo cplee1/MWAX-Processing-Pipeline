@@ -6,10 +6,10 @@
 // moving the data.
 //
 
-include { ASVO_VIS_DOWNLOAD    } from '../../../modules/local/asvo_vis_download'
-include { CHECK_ASVO_JOB_FILES } from '../../../modules/local/check_asvo_job_files'
-include { CHECK_OBSID          } from '../../../modules/local/check_obsid'
-include { MOVE_VIS_DATA            } from '../../../modules/local/move_vis_data'
+include { ASVO_VIS_DOWNLOAD    } from '../../modules/local/asvo_vis_download'
+include { CHECK_ASVO_JOB_FILES } from '../../modules/local/check_asvo_job_files'
+include { CHECK_OBSID          } from '../../modules/local/check_obsid'
+include { MOVE_VIS_DATA            } from '../../modules/local/move_vis_data'
 
 workflow GET_CAL_DATA {
     take:

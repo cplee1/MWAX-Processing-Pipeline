@@ -6,11 +6,11 @@
 // moving the data.
 //
 
-include { ASVO_VCS_DOWNLOAD    } from '../../../modules/local/asvo_vcs_download'
-include { CHECK_ASVO_JOB_FILES } from '../../../modules/local/check_asvo_job_files'
-include { CHECK_OBSID          } from '../../../modules/local/check_obsid'
-include { CHECK_DATA_FORMAT    } from '../../../modules/local/check_data_format'
-include { MOVE_VCS_DATA            } from '../../../modules/local/move_vcs_data'
+include { ASVO_VCS_DOWNLOAD    } from '../../modules/local/asvo_vcs_download'
+include { CHECK_ASVO_JOB_FILES } from '../../modules/local/check_asvo_job_files'
+include { CHECK_OBSID          } from '../../modules/local/check_obsid'
+include { CHECK_DATA_FORMAT    } from '../../modules/local/check_data_format'
+include { MOVE_VCS_DATA            } from '../../modules/local/move_vcs_data'
 
 workflow GET_VCS_DATA {
     take:

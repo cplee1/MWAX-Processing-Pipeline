@@ -2,15 +2,15 @@
 // Beamform and fold VCS pulsar observations in PSRFITS format
 //
 
-include { PARSE_POINTINGS      } from '../../../modules/local/parse_pointings'
-include { GET_POINTINGS        } from '../../../modules/local/get_pointings'
-include { COMBINE_POINTINGS    } from '../../../modules/local/combine_pointings'
-include { VCSBEAM_MULTIPIXEL as VCSBEAM } from '../../../modules/local/vcsbeam_multipixel'
-include { LOCATE_PSRFITS_FILES } from '../../../modules/local/locate_psrfits_files'
-include { CREATE_TARBALL       } from '../../../modules/local/create_tarball'
-include { COPY_TO_ACACIA       } from '../../../modules/local/copy_to_acacia'
-include { GET_EPHEMERIS        } from '../../../modules/local/get_ephemeris'
-include { PREPFOLD             } from '../../../modules/local/prepfold'
+include { PARSE_POINTINGS      } from '../../modules/local/parse_pointings'
+include { GET_POINTINGS        } from '../../modules/local/get_pointings'
+include { COMBINE_POINTINGS    } from '../../modules/local/combine_pointings'
+include { VCSBEAM_MULTIPIXEL as VCSBEAM } from '../../modules/local/vcsbeam_multipixel'
+include { LOCATE_PSRFITS_FILES } from '../../modules/local/locate_psrfits_files'
+include { CREATE_TARBALL       } from '../../modules/local/create_tarball'
+include { COPY_TO_ACACIA       } from '../../modules/local/copy_to_acacia'
+include { GET_EPHEMERIS        } from '../../modules/local/get_ephemeris'
+include { PREPFOLD             } from '../../modules/local/prepfold'
 
 workflow PROCESS_PSRFITS {
     take:

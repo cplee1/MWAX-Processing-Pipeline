@@ -2,17 +2,17 @@
 // Beamform and fold VCS pulsar observations in VDIF format
 //
 
-include { PARSE_TILE_FLAGS      } from '../../../modules/local/parse_tile_flags'
-include { PARSE_POINTING        } from '../../../modules/local/parse_pointing'
-include { GET_POINTING          } from '../../../modules/local/get_pointing'
-include { VCSBEAM               } from '../../../modules/local/vcsbeam'
-include { PUBLISH_VCSBEAM_FILES } from '../../../modules/local/publish_vcsbeam_files'
-include { LOCATE_VDIF_FILES     } from '../../../modules/local/locate_vdif_files'
-include { CREATE_TARBALL        } from '../../../modules/local/create_tarball'
-include { COPY_TO_ACACIA        } from '../../../modules/local/copy_to_acacia'
-include { GET_EPHEMERIS         } from '../../../modules/local/get_ephemeris'
-include { DSPSR                 } from '../../../modules/local/dspsr'
-include { PDMP                  } from '../../../modules/local/pdmp'
+include { PARSE_TILE_FLAGS      } from '../../modules/local/parse_tile_flags'
+include { PARSE_POINTING        } from '../../modules/local/parse_pointing'
+include { GET_POINTING          } from '../../modules/local/get_pointing'
+include { VCSBEAM               } from '../../modules/local/vcsbeam'
+include { PUBLISH_VCSBEAM_FILES } from '../../modules/local/publish_vcsbeam_files'
+include { LOCATE_VDIF_FILES     } from '../../modules/local/locate_vdif_files'
+include { CREATE_TARBALL        } from '../../modules/local/create_tarball'
+include { COPY_TO_ACACIA        } from '../../modules/local/copy_to_acacia'
+include { GET_EPHEMERIS         } from '../../modules/local/get_ephemeris'
+include { DSPSR                 } from '../../modules/local/dspsr'
+include { PDMP                  } from '../../modules/local/pdmp'
 
 workflow PROCESS_VDIF {
     take:
